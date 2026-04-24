@@ -11,6 +11,7 @@ import com.squareup.kotlinpoet.WildcardTypeName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.tencent.tmm.knoi.function.FunctionInfo
+import com.tencent.tmm.knoi.function.AsyncExportFunction
 import java.util.Locale
 
 const val OPTION_CONFIG_FILE = "CONFIG_FILE"
@@ -81,6 +82,27 @@ fun checkFunctionSupportType(functionList: List<FunctionInfo>): MutableList<Stri
             val isParamSupportType = isSupportType(paramType)
             if (!isParamSupportType) {
                 result.add("${function.packageName}#${function.functionName}\n UnSupport Param Type ${paramType}, Support Type : $supportTypeList")
+            }
+        }
+    }
+    return result
+}
+
+fun checkAsyncFunctionSupportType(functionList: List<AsyncExportFunction>): MutableList<String> {
+    val result = mutableListOf<String>()
+    functionList.forEach { function ->
+        function.function.returnType?.let { returnType ->
+            validateAsyncExportTypeShape(returnType.toAsyncTypeShape())?.let { message ->
+                result.add(
+                    "${function.function.packageName}#${function.function.functionName}\n $message"
+                )
+            }
+        }
+        function.function.parameters.forEach { param ->
+            validateAsyncExportTypeShape(param.type.toAsyncTypeShape())?.let { message ->
+                result.add(
+                    "${function.function.packageName}#${function.function.functionName}\n $message"
+                )
             }
         }
     }
