@@ -170,7 +170,7 @@ object VBTransportService {
             val timeoutResponse = VBTransportResponse().apply {
                 this.request = request
                 this.errorCode = VBTransportResultCode.CODE_FORCE_TIMEOUT
-                this.errorMessage = "请求超时"
+                this.errorMessage = "Request timed out"
             }
             handler?.invoke(timeoutResponse)
         }

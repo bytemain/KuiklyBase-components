@@ -221,7 +221,7 @@ class VBTransportTask(
             logI("execute() request task is canceled before")
             handler?.let {
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
             } ?: run {
