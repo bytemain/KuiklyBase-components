@@ -55,8 +55,8 @@ jobs:
       - name: Resolve publish inputs
         shell: bash
         env:
-          REQUESTED_VERSION: ${{ inputs.version }}
-          REQUESTED_TASKS: ${{ inputs.publish_tasks }}
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_TASKS: ${{ github.event.inputs.publish_tasks }}
         run: |
           set -euo pipefail
           if [[ -n "${REQUESTED_VERSION:-}" ]]; then
