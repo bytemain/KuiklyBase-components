@@ -1,0 +1,82 @@
+name: Publish NetworkKMM to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override Maven version, for example 0.0.5"
+        required: false
+        type: string
+      publish_tasks:
+        description: "Optional space-separated Gradle publish tasks"
+        required: false
+        type: string
+  push:
+    tags:
+      - "network-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish Android, iOS, and OHOS publications
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642
+    env:
+      ANDROID_HOME: ${{ runner.temp }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends curl unzip
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o "$RUNNER_TEMP/android-commandline-tools.zip"
+          unzip -q "$RUNNER_TEMP/android-commandline-tools.zip" -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_TASKS: ${{ inputs.publish_tasks }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
+            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish NetworkKMM publications
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd NetworkKMM
+          ./scripts/publish-github-packages.sh

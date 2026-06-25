@@ -24,6 +24,9 @@ implementation("com.tencent.kuiklybase:network:0.0.4")
 // For more details, refer to the demo apps for each platform (see androidApp/, iosApp/, ohosApp/ directories)
 ```
 
+#### GitHub Packages
+The bytemain fork can publish Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
+
 #### Network Permission Declaration
 ##### Android
 ```kotlin

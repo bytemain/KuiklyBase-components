@@ -24,6 +24,9 @@ implementation("com.tencent.kuiklybase:network:0.0.4")
 // 如有疑问，参考各端 demo app 接入 (androidApp/, iosApp/, ohosApp/目录下的示例)
 ```
 
+#### GitHub Packages
+bytemain fork 可以发布 Android、iOS、HarmonyOS 三端 KMP artifacts 到 GitHub Packages。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
+
 #### 网络权限声明
 ##### Android
 ```kotlin

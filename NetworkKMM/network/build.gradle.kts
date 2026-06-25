@@ -133,6 +133,29 @@ extra["signing.password"] = null
 extra["signing.secretKeyRingFile"] = null
 extra["ossrhUsername"] = null
 extra["ossrhPassword"] = null
+extra["githubPackagesOwner"] = null
+extra["githubPackagesRepository"] = null
+extra["githubPackagesUsername"] = null
+extra["githubPackagesToken"] = null
+
+fun getExtraString(name: String) = try {
+    extra[name]?.toString()
+} catch (ignore: Exception) {
+    null
+}
+
+fun String?.validPublishValue(): String? = takeIf { !it.isNullOrBlank() && it != "null" }
+
+fun getOptionalPublishProperty(name: String, vararg envNames: String): String? {
+    findProperty(name)?.toString().validPublishValue()?.let { return it }
+    getExtraString(name).validPublishValue()?.let { return it }
+    return envNames.firstNotNullOfOrNull { System.getenv(it).validPublishValue() }
+}
+
+fun getRequiredPublishProperty(name: String, vararg envNames: String): String {
+    return getOptionalPublishProperty(name, *envNames)
+        ?: error("Missing publish property: $name")
+}
 
 // Grabbing secrets from local.properties file or from environment variables, which could be used on CI
 val secretPropsFile = project.rootProject.file("local.properties")
@@ -163,18 +186,44 @@ if (publishFile.exists()) {
     }
 }
 
-val publishGroupID = extra["gruopID"] as String
-val publishVersion = extra["mavenVersion"] as String
-val publishArtifactID = extra["artifactID"] as String
+val publishGroupID = getRequiredPublishProperty("gruopID", "MAVEN_GROUP_ID")
+val publishVersion = getRequiredPublishProperty("mavenVersion", "MAVEN_VERSION")
+val publishArtifactID = getRequiredPublishProperty("artifactID", "MAVEN_ARTIFACT_ID")
+val githubRepositoryEnv = System.getenv("GITHUB_REPOSITORY")
+val githubPackagesOwner = (
+    getOptionalPublishProperty("githubPackagesOwner", "GITHUB_PACKAGES_OWNER")
+        ?: githubRepositoryEnv?.substringBefore("/")
+        ?: "bytemain"
+    ).lowercase(Locale.US)
+val githubPackagesRepository = getOptionalPublishProperty(
+    "githubPackagesRepository",
+    "GITHUB_PACKAGES_REPOSITORY",
+) ?: githubRepositoryEnv?.substringAfter("/") ?: "KuiklyBase-components"
+val githubPackagesUsername = getOptionalPublishProperty(
+    "githubPackagesUsername",
+    "GITHUB_PACKAGES_USERNAME",
+    "GITHUB_ACTOR",
+) ?: getOptionalPublishProperty("gpr.user")
+val githubPackagesToken = getOptionalPublishProperty(
+    "githubPackagesToken",
+    "GITHUB_PACKAGES_TOKEN",
+    "GITHUB_TOKEN",
+    "GH_TOKEN",
+) ?: getOptionalPublishProperty("gpr.key")
+val signingKeyId = getOptionalPublishProperty("signing.keyId", "SIGNING_KEY_ID")
+val signingPassword = getOptionalPublishProperty("signing.password", "SIGNING_PASSWORD")
+val signingSecretKeyRingFile = getOptionalPublishProperty(
+    "signing.secretKeyRingFile",
+    "SIGNING_SECRET_KEY_RING_FILE",
+)
+val shouldSignPublications = listOf(
+    signingKeyId,
+    signingPassword,
+    signingSecretKeyRingFile,
+).all { !it.isNullOrBlank() }
 
 val javadocJar by tasks.registering(Jar::class) {
     archiveClassifier.set("javadoc")
-}
-
-fun getExtraString(name: String) = try {
-    extra[name]?.toString()
-} catch (ignore: Exception) {
-    null
 }
 
 publishing {
@@ -190,6 +239,14 @@ publishing {
             credentials {
                 username = getExtraString("ossrhUsername")
                 password = getExtraString("ossrhPassword")
+            }
+        }
+        maven {
+            name = "githubPackages"
+            url = uri("https://maven.pkg.github.com/$githubPackagesOwner/$githubPackagesRepository")
+            credentials {
+                username = githubPackagesUsername.orEmpty()
+                password = githubPackagesToken.orEmpty()
             }
         }
     }
@@ -227,5 +284,7 @@ publishing {
 }
 
 extensions.configure<SigningExtension> {
-    sign(publishing.publications)
+    if (shouldSignPublications) {
+        sign(publishing.publications)
+    }
 }
