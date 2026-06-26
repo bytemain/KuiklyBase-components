@@ -115,7 +115,31 @@ jobs:
             echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
           fi
 
+      - name: Check existing NetworkKMM version
+        shell: bash
+        env:
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MAVEN_VERSION:-}" ]]; then
+            exit 0
+          fi
+          metadata_url="https://maven.pkg.github.com/${GITHUB_REPOSITORY}/com/tencent/kuiklybase/network/maven-metadata.xml"
+          metadata_file="$(mktemp)"
+          if curl -fsSL -u "$GITHUB_PACKAGES_USERNAME:$GITHUB_PACKAGES_TOKEN" "$metadata_url" -o "$metadata_file" \
+            && grep -F "<version>$MAVEN_VERSION</version>" "$metadata_file" >/dev/null; then
+            echo "NetworkKMM version $MAVEN_VERSION already exists; skipping publish."
+            echo "NETWORK_SKIP_PUBLISH=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Skip existing NetworkKMM version
+        if: env.NETWORK_SKIP_PUBLISH == 'true'
+        shell: bash
+        run: echo "NetworkKMM version $MAVEN_VERSION already exists in GitHub Packages."
+
       - name: Publish NetworkKMM publications
+        if: env.NETWORK_SKIP_PUBLISH != 'true'
         shell: bash
         env:
           GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
@@ -188,7 +212,31 @@ jobs:
             echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
           fi
 
+      - name: Check existing NetworkKMM version
+        shell: bash
+        env:
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MAVEN_VERSION:-}" ]]; then
+            exit 0
+          fi
+          metadata_url="https://maven.pkg.github.com/${GITHUB_REPOSITORY}/com/tencent/kuiklybase/network/maven-metadata.xml"
+          metadata_file="$(mktemp)"
+          if curl -fsSL -u "$GITHUB_PACKAGES_USERNAME:$GITHUB_PACKAGES_TOKEN" "$metadata_url" -o "$metadata_file" \
+            && grep -F "<version>$MAVEN_VERSION</version>" "$metadata_file" >/dev/null; then
+            echo "NetworkKMM version $MAVEN_VERSION already exists; skipping publish."
+            echo "NETWORK_SKIP_PUBLISH=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Skip existing NetworkKMM version
+        if: env.NETWORK_SKIP_PUBLISH == 'true'
+        shell: bash
+        run: echo "NetworkKMM version $MAVEN_VERSION already exists in GitHub Packages."
+
       - name: Publish NetworkKMM iOS publications
+        if: env.NETWORK_SKIP_PUBLISH != 'true'
         shell: bash
         env:
           GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
@@ -262,7 +310,31 @@ jobs:
             echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
           fi
 
+      - name: Check existing NetworkKMM version
+        shell: bash
+        env:
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MAVEN_VERSION:-}" ]]; then
+            exit 0
+          fi
+          metadata_url="https://maven.pkg.github.com/${GITHUB_REPOSITORY}/com/tencent/kuiklybase/network/maven-metadata.xml"
+          metadata_file="$(mktemp)"
+          if curl -fsSL -u "$GITHUB_PACKAGES_USERNAME:$GITHUB_PACKAGES_TOKEN" "$metadata_url" -o "$metadata_file" \
+            && grep -F "<version>$MAVEN_VERSION</version>" "$metadata_file" >/dev/null; then
+            echo "NetworkKMM version $MAVEN_VERSION already exists; skipping publish."
+            echo "NETWORK_SKIP_PUBLISH=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Skip existing NetworkKMM version
+        if: env.NETWORK_SKIP_PUBLISH == 'true'
+        shell: bash
+        run: echo "NetworkKMM version $MAVEN_VERSION already exists in GitHub Packages."
+
       - name: Publish NetworkKMM metadata publication
+        if: env.NETWORK_SKIP_PUBLISH != 'true'
         shell: bash
         env:
           GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
