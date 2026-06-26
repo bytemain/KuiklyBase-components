@@ -1,7 +1,7 @@
 plugins {
     //trick: for the same plugin versions in all sub-modules
     alias(libs.plugins.androidLibrary).apply(false)
-    kotlin("multiplatform").version("2.0.21-KBA-003").apply(false)
+    kotlin("multiplatform").version("2.0.21-KBA-010").apply(false)
     alias(libs.plugins.composeOhos).apply(false)
     alias(libs.plugins.composeCompiler).apply(false)
     id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false

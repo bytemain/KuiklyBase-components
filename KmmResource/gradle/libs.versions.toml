@@ -1,5 +1,5 @@
 [versions]
-agp = "8.2.0"
+agp = "8.13.2"
 kotlin = "1.9.20"
 compose = "1.5.4"
 compose-compiler = "1.5.4"
@@ -84,4 +84,4 @@ kotlinCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = 
 composeOhos = { id = "org.jetbrains.compose", version.ref = "compose-ohos" }
 jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 composeGradle = { id = "com.tencent.tmm.kmmgradle", version.ref = "composeGradleVersion" }
-composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version = "2.0.21-KBA-003" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version = "2.0.21-KBA-010" }

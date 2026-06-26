@@ -15,8 +15,8 @@ The KMM resource manager fundamentally exposes platform-specific resource identi
 
 | Component | Stable | Beta |
 |-----------|--------|------|
-| com.tencent.kuiklybase.resource.generator | 0.1.0-raft.0 | 0.1.0-raft.0 |
-| resource-core | 0.1.0-raft.0 | 0.1.0-raft.0 |
+| com.tencent.kuiklybase.resource.generator | 0.1.0-raft.1 | 0.1.0-raft.1 |
+| resource-core | 0.1.0-raft.1 | 0.1.0-raft.1 |
 | resource-compose | 0.0.1 | 0.0.1 |
 | @kuiklybase/resource_compose | 0.0.1 | 0.0.1 |
 
@@ -72,7 +72,7 @@ dependencyResolutionManagement {
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.tencent.kuiklybase.resource.generator").version("0.1.0-raft.0").apply(false)
+    id("com.tencent.kuiklybase.resource.generator").version("0.1.0-raft.1").apply(false)
 }
 ```
 
@@ -83,7 +83,7 @@ plugins {
 }
 
 commonMain.dependencies {
-    implementation("com.tencent.kuiklybase:resource-core:0.1.0-raft.0")
+    implementation("com.tencent.kuiklybase:resource-core:0.1.0-raft.1")
 }
 
 multiplatformResources {
