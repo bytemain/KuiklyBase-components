@@ -32,7 +32,7 @@ jobs:
     name: Publish Android, OHOS, runtime, and plugin
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642
+      image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.1.1.280
     env:
       ANDROID_HOME: /tmp/android-sdk
       ANDROID_SDK_ROOT: /tmp/android-sdk
@@ -65,6 +65,32 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
           echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve HarmonyOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ohos_sdk_home="${OHOS_SDK_HOME:-${OHOS_BASE_SDK_HOME:-/opt/harmonyos-tools/command-line-tools/sdk/default/openharmony}}"
+          if [[ -z "$ohos_sdk_home" ]]; then
+            echo "OHOS_SDK_HOME or OHOS_BASE_SDK_HOME is required." >&2
+            exit 1
+          fi
+          if [[ ! -d "$ohos_sdk_home/native/sysroot" ]]; then
+            echo "HarmonyOS SDK sysroot not found at $ohos_sdk_home/native/sysroot" >&2
+            exit 1
+          fi
+          ohos_sdk_home="$(cd "$ohos_sdk_home" && pwd)"
+          deveco_sdk_home="${DEVECO_SDK_HOME:-$(cd "$ohos_sdk_home/../.." && pwd)}"
+          deveco_studio_home="${DEVECO_STUDIO_HOME:-$(cd "$deveco_sdk_home/.." && pwd)}"
+
+          echo "OHOS_SDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_BASE_SDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_NDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_LLVM_HOME=$ohos_sdk_home/native/llvm" >> "$GITHUB_ENV"
+          echo "DEVECO_SDK_HOME=$deveco_sdk_home" >> "$GITHUB_ENV"
+          echo "DEVECO_STUDIO_HOME=$deveco_studio_home" >> "$GITHUB_ENV"
+          echo "$ohos_sdk_home/toolchains" >> "$GITHUB_PATH"
+          echo "$ohos_sdk_home/native/llvm/bin" >> "$GITHUB_PATH"
 
       - name: Resolve publish inputs
         shell: bash

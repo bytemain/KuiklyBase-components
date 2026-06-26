@@ -15,6 +15,7 @@
 - build: align NetworkKMM Kotlin, KSP, Android Gradle Plugin, and Gradle wrapper versions
 - build: fail publishing early when Gradle task discovery cannot configure the project
 - build: keep NetworkKMM KSP on the Kotlin 2.0.21-compatible line and disable the KBA suffix version warning
+- build: configure HarmonyOS SDK environment variables from the CI image before publishing OHOS artifacts
 
 ##### 0.0.4
 

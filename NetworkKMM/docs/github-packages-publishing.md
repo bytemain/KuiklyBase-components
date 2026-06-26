@@ -195,7 +195,8 @@ Or run **Publish NetworkKMM to GitHub Packages** from GitHub Actions and optiona
 
 The workflow splits publishing by host:
 
-- The Linux job uses `ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642`, matching the HarmonyOS CI environment used by `bytemain/soduku-harmony`. It publishes Android, OHOS, OHOS runtime, and the Gradle plugin.
+- The Linux job uses `ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.1.1.280`, matching the HarmonyOS command-line tools used by `bytemain/soduku-harmony`. It publishes Android, OHOS, OHOS runtime, and the Gradle plugin.
+- The Linux job maps the image-provided `OHOS_BASE_SDK_HOME` to `OHOS_SDK_HOME`, `OHOS_NDK_HOME`, `OHOS_LLVM_HOME`, and DevEco SDK variables so Kotlin/Native can find the HarmonyOS sysroot during `ohosArm64` cinterop.
 - The macOS iOS job runs in parallel with the Linux job and publishes the iOS KLIB artifacts.
 - The macOS metadata job runs after the platform jobs succeed and publishes the root `kotlinMultiplatform` metadata publication.
 - All publish jobs install Android SDK platform 33 and build-tools 33.0.2 because the Android Gradle plugin is configured during project evaluation.
