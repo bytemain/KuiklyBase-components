@@ -211,11 +211,9 @@ class CurlClient {
             }
             std::string header_opt = key + ": " + value;
             logI(log_tag_, "request header[" + std::to_string(i) + "]: " + header_opt);
-            header_list_ = curl_slist_append(header_list_, header_opt.c_str());
-            if (header_list_ == nullptr) {
-                header_list_ = curl_slist_append(header_list_, header_opt.c_str());
-            } else {
-                curl_slist_append(header_list_, header_opt.c_str());
+            struct curl_slist *updated_header_list = curl_slist_append(header_list_, header_opt.c_str());
+            if (updated_header_list != nullptr) {
+                header_list_ = updated_header_list;
             }
         }
 

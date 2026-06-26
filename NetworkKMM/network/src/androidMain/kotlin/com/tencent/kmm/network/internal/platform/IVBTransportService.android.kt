@@ -27,6 +27,7 @@ import com.tencent.kmm.network.export.VBTransportPostRequest
 import com.tencent.kmm.network.export.VBTransportPostResponse
 import com.tencent.kmm.network.export.VBTransportRequest
 import com.tencent.kmm.network.export.VBTransportResponse
+import com.tencent.kmm.network.export.VBTransportResultCode
 import com.tencent.kmm.network.export.VBTransportStringRequest
 import com.tencent.kmm.network.export.VBTransportStringResponse
 import com.tencent.kmm.network.internal.VBPBLog
@@ -51,6 +52,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -65,38 +67,46 @@ object AndroidTransportImpl : IVBTransportService {
         kmmCallback: (response: VBTransportBaseResponse) -> Unit
     ) {
         val job = scope.launch {
-            val client = getHttpClient(request) as HttpClient
-            val response = client.request(request.url) {
-                method = HttpMethod(request.method.name)
-                constructRequest(request)
-            }
+            try {
+                val client = getHttpClient(request) as HttpClient
+                val response = client.request(request.url) {
+                    method = HttpMethod(request.method.name)
+                    constructRequest(request)
+                }
 
-            var errMsg = ""
-            var errorCode = 0
-            if (response.status != HttpStatusCode.OK) {
-                errorCode = response.status.value
-                errMsg = response.status.description
-            }
+                var errMsg = ""
+                var errorCode = 0
+                if (response.status != HttpStatusCode.OK) {
+                    errorCode = response.status.value
+                    errMsg = response.status.description
+                }
 
-            val channel = response.bodyAsChannel()
-            val contentLength = response.contentLength()
-            val data = if (contentLength == null) {
-                // 动态扩容方案
-                readUnknownSize(ByteReadChannelWrapper(channel))
-            } else {
-                // 预分配方案
-                readKnownSize(ByteReadChannelWrapper(channel), contentLength)
-            }
+                val channel = response.bodyAsChannel()
+                val contentLength = response.contentLength()
+                val data = if (contentLength == null) {
+                    // 动态扩容方案
+                    readUnknownSize(ByteReadChannelWrapper(channel))
+                } else {
+                    // 预分配方案
+                    readKnownSize(ByteReadChannelWrapper(channel), contentLength)
+                }
 
-            buildResponseAndCallback(
-                taskMap,
-                errorCode,
-                errMsg,
-                response.headers.entries().associate { it.key to it.value },
-                data,
-                request,
-                kmmCallback
-            )
+                buildResponseAndCallback(
+                    taskMap,
+                    errorCode,
+                    errMsg,
+                    response.headers.entries().associate { it.key to it.value },
+                    data,
+                    request,
+                    kmmCallback
+                )
+            } catch (throwable: Throwable) {
+                if (throwable is CancellationException) {
+                    taskMap.remove(request.requestId)
+                    throw throwable
+                }
+                callbackFailure(request, throwable, kmmCallback)
+            }
         }
         taskMap[request.requestId] = job
     }
@@ -127,7 +137,12 @@ object AndroidTransportImpl : IVBTransportService {
                 "header:${kmmPostRequest.header}", kmmPostRequest.logTag)
 
         if (!kmmPostRequest.isDataInitialize()) {
-            throw IllegalArgumentException("Data is not initialized")
+            callbackFailure(
+                kmmPostRequest,
+                IllegalArgumentException("Data is not initialized"),
+                wrapPostCallback(kmmPostResponseCallback)
+            )
+            return
         }
 
         triggerRequest(kmmPostRequest, wrapPostCallback(kmmPostResponseCallback))
@@ -179,6 +194,24 @@ object AndroidTransportImpl : IVBTransportService {
     override fun cancel(requestId: Int) {
         logI("requestID -> $requestId task cancel by user")
         taskMap[requestId]?.cancel()
+    }
+
+    private fun callbackFailure(
+        request: VBTransportBaseRequest,
+        throwable: Throwable,
+        kmmCallback: (response: VBTransportBaseResponse) -> Unit
+    ) {
+        val errorMessage = throwable.message?.takeIf { it.isNotBlank() } ?: throwable.toString()
+        logI("request failed, id:${request.requestId}, error:${errorMessage}", request.logTag)
+        buildResponseAndCallback(
+            taskMap,
+            VBTransportResultCode.CODE_NETWORK_ERROR,
+            errorMessage,
+            emptyMap(),
+            byteArrayOf(),
+            request,
+            kmmCallback
+        )
     }
 }
 

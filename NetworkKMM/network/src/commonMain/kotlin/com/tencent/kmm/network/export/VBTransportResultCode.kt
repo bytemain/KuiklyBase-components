@@ -23,4 +23,6 @@ object VBTransportResultCode {
     const val CODE_CANCELED = -10001
     // 强制超时
     const val CODE_FORCE_TIMEOUT = -2001
+    // 底层网络库抛出的异常
+    const val CODE_NETWORK_ERROR = -10002
 }
