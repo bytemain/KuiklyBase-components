@@ -103,6 +103,10 @@ class MultiplatformResourcesPlugin : Plugin<Project> {
         // 配置commonMR KModifiers
 
         val generatedDir = File(project.buildDir, "generated/tmm-res")
+        val commonGeneratedDir = mrExtension.commonGeneratedDir
+            ?.takeIf { it.isNotBlank() }
+            ?.let { project.file(it) }
+            ?: generatedDir
 
         val strictLineBreaks: Boolean =
             project.findProperty("tmm.resources.strictLineBreaks").let { it as? String }
@@ -114,6 +118,7 @@ class MultiplatformResourcesPlugin : Plugin<Project> {
             visibility = mrExtension.multiplatformResourcesVisibility,
             resPrefix = mrResPrefix,
             generatedDir = generatedDir,
+            commonGeneratedDir = commonGeneratedDir,
             isStrictLineBreaks = strictLineBreaks,
             iosLocalizationRegion = mrExtension.iosBaseLocalizationRegion,
             commonSourceSet = commonSourceSet,

@@ -24,7 +24,7 @@ fun setupCommonTarget(
 
     val generationTask = setupCommonGenerator(
         commonSourceSet = mrSettings.commonSourceSet,
-        generatedDir = mrSettings.generatedDir,
+        generatedDir = mrSettings.commonGeneratedDir,
         mrSettings = mrSettings,
         features = features,
         target = project

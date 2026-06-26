@@ -169,6 +169,7 @@ abstract class MRGenerator(
         val resPrefix: String,
         val isStrictLineBreaks: Boolean,
         val generatedDir: File,
+        val commonGeneratedDir: File,
         val iosLocalizationRegion: String?,
         val commonSourceSet: KotlinSourceSet,
         val androidRClassPackage: String?

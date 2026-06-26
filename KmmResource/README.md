@@ -15,19 +15,64 @@ The KMM resource manager fundamentally exposes platform-specific resource identi
 
 | Component | Stable | Beta |
 |-----------|--------|------|
-| com.tencent.kuiklybase.resource.generator | 0.0.1 | 0.0.1 |
-| resource-core | 0.0.1 | 0.0.1 |
+| com.tencent.kuiklybase.resource.generator | 0.1.0-raft.0 | 0.1.0-raft.0 |
+| resource-core | 0.1.0-raft.0 | 0.1.0-raft.0 |
 | resource-compose | 0.0.1 | 0.0.1 |
 | @kuiklybase/resource_compose | 0.0.1 | 0.0.1 |
 
 ## Gradle Integration
+
+### GitHub Packages
+
+The bytemain fork publishes `resource-core` and the
+`com.tencent.kuiklybase.resource.generator` Gradle plugin to GitHub Packages.
+GitHub Packages Maven requires credentials even for public packages:
+
+```kotlin
+pluginManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/bytemain/KuiklyBase-components") {
+            credentials {
+                username = providers.gradleProperty("githubPackagesUsername")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("githubPackagesToken")
+                    .orElse(providers.environmentVariable("GITHUB_PACKAGES_TOKEN"))
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
+            }
+        }
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/bytemain/KuiklyBase-components") {
+            credentials {
+                username = providers.gradleProperty("githubPackagesUsername")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("githubPackagesToken")
+                    .orElse(providers.environmentVariable("GITHUB_PACKAGES_TOKEN"))
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
+            }
+        }
+        google()
+        mavenCentral()
+    }
+}
+```
 
 ### KMM Project Setup
 
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.tencent.kuiklybase.resource.generator").version("x.x.x-version").apply(false)
+    id("com.tencent.kuiklybase.resource.generator").version("0.1.0-raft.0").apply(false)
 }
 ```
 
@@ -38,8 +83,7 @@ plugins {
 }
 
 commonMain.dependencies {
-    implementation("com.tencent.kuiklybase:resource-core:x.x.x-version")
-    implementation("com.tencent.kuiklybase:resource-compose:x.x.x-version")
+    implementation("com.tencent.kuiklybase:resource-core:0.1.0-raft.0")
 }
 
 multiplatformResources {
@@ -48,6 +92,7 @@ multiplatformResources {
     multiplatformResourcesClassName = "MR"              // Optional (default: MR)
     iosBaseLocalizationRegion = "en"                    // Optional (default: "en") 
     multiplatformResourcesSourceSet = "commonMain"      // Optional (default: "commonMain")
+    commonGeneratedDir = "build/generated/tmm-res-common" // Optional stable common MR root
     multiplatformResourcesVisibility = MRVisibility.Internal // Optional
 }
 ```
@@ -59,7 +104,13 @@ multiplatformResources {
 | `multiplatformResourcesClassName` | Generated class name (default: `MR`) |
 | `iosBaseLocalizationRegion` | Base localization region for iOS bundles |
 | `multiplatformResourcesSourceSet` | Target source set for resource processing |
+| `commonGeneratedDir` | Optional stable generated root for common MR sources. When set to `build/generated/tmm-res-common`, the plugin registers `build/generated/tmm-res-common/commonMain/src` in `commonMain` instead of the volatile default `build/generated/tmm-res/commonMain/src`. Platform generated outputs continue to use `build/generated/tmm-res`. |
 | `multiplatformResourcesVisibility` | Visibility modifier for generated classes |
+
+`resource-compose` is not required for plain KMP MR generation. Consumers that
+already provide their own Compose wrappers should depend only on
+`resource-core`. Rebuild `resource-compose` against the target Compose runtime
+before using it in a Compose/KMP app.
 
 ### HarmonyOS Configuration
 
