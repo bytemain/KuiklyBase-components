@@ -48,11 +48,17 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 #### GitHub Packages
 bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 GitHub Packages。GitHub Packages Maven 即使是 public 包也需要 credentials。本地构建时，把 [`docs/github-packages.properties.example`](./docs/github-packages.properties.example) 复制到消费仓库根目录的 `github-packages.properties`，填入带 `read:packages` 权限的 classic PAT；文件不存在时，Gradle 会回退读取 `GITHUB_ACTOR`、`GITHUB_PACKAGES_TOKEN` 或 `GITHUB_TOKEN`。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
 
-#### 统一 Network P0 API
-新调用方可以使用 `NetworkClient` 接入 P0 request/response model、取消、auth/header middleware 和 request policy。见 [Unified Network P0 API](./docs/unified-network-p0.md)。
+#### 新请求优先使用 `NetworkClient`
+新的 KMP 调用点建议把 `NetworkClient` 作为 typed request 边界，不再直接拼 `VBTransportRequest`。
+文档按功能和使用方式组织：
 
-#### 统一 Network P1 API
-P1 增加有序 interceptor、进度回调、流式 body 描述、engine capability 标记和稳定错误分类。见 [Unified Network P1 API](./docs/unified-network-p1.md)。
+- 创建 GET/POST 请求、设置 header/query/body、发起请求、读取响应、取消请求：
+  [NetworkClient 使用指南](./docs/network-client-usage-zh.md)
+- 接入 auth/header middleware、timeout/retry/priority 策略、有序 interceptor、上传/下载进度、
+  stream/file body、engine capability 检查和稳定错误分类：
+  [NetworkClient 进阶能力](./docs/network-client-advanced-zh.md)
+
+`VBTransportService` 只建议继续用于历史接入点或底层 engine 封装。
 
 #### 网络权限声明
 ##### Android
