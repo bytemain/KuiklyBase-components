@@ -11,8 +11,17 @@
 ```kotlin
 repositories {
     maven {
-        url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+        name = "bytemainKuiklyBase"
+        url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
+        credentials {
+            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = findProperty("gpr.key") as String?
+                ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                ?: System.getenv("GITHUB_TOKEN")
+        }
     }
+    // 保留业务已有的 google()、mavenCentral()；
+    // 如果 Kuikly 相关依赖来自腾讯 Maven，也继续保留腾讯 Maven。
 }
 
 dependencies {
@@ -242,7 +251,7 @@ VBTransportInitHelper.init(config)
 ## 6. 接入检查清单
 
 - [ ] 已添加 `com.tencent.kuiklybase:network:0.0.5-raft.0`
-- [ ] 已添加腾讯 Maven 仓库或 GitHub Packages Maven 仓库
+- [ ] 已添加 GitHub Packages Maven 仓库和可读 token
 - [ ] 已声明 `INTERNET`、`GET_NETWORK_INFO`、`GET_WIFI_INFO`
 - [ ] 已添加权限 reason 字符串
 - [ ] 已执行 `./gradlew copyNetworkOhosRuntimeLibs`，或手动放置 native runtime 库

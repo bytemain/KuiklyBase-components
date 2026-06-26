@@ -15,8 +15,17 @@ Currently, the HarmonyOS side uses the open-source library **libcurl** as the ne
 ```kotlin
 repositories {
     maven {
-        url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+        name = "bytemainKuiklyBase"
+        url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
+        credentials {
+            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = findProperty("gpr.key") as String?
+                ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                ?: System.getenv("GITHUB_TOKEN")
+        }
     }
+    // Keep your existing repositories such as google(), mavenCentral(),
+    // and Tencent Maven if your app resolves Kuikly artifacts from there.
 }
 
 // Add the dependency in build.gradle.kts / build.ohos.gradle.kts
@@ -25,7 +34,7 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 ```
 
 #### GitHub Packages
-The bytemain fork can publish Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
+The bytemain fork publishes Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. GitHub Packages Maven requires credentials even for public packages; use a classic PAT with `read:packages` locally, or `GITHUB_TOKEN` in GitHub Actions. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
 
 #### Network Permission Declaration
 ##### Android

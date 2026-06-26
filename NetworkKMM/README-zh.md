@@ -15,8 +15,17 @@
 ```kotlin
 repositories {
     maven {
-        url = uri("https://mirrors.tencent.com/nexus/repository/maven-tencent/")
+        name = "bytemainKuiklyBase"
+        url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
+        credentials {
+            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = findProperty("gpr.key") as String?
+                ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                ?: System.getenv("GITHUB_TOKEN")
+        }
     }
+    // 保留业务已有的 google()、mavenCentral()；
+    // 如果 Kuikly 相关依赖来自腾讯 Maven，也继续保留腾讯 Maven。
 }
 
 // 在 build.gradle.kts / build.ohos.gradle.kts 添加依赖
@@ -25,7 +34,7 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 ```
 
 #### GitHub Packages
-bytemain fork 可以发布 Android、iOS、HarmonyOS 三端 KMP artifacts 到 GitHub Packages。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
+bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 GitHub Packages。GitHub Packages Maven 即使是 public 包也需要 credentials；本地使用带 `read:packages` 权限的 classic PAT，GitHub Actions 中可以使用 `GITHUB_TOKEN`。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
 
 #### 网络权限声明
 ##### Android

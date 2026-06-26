@@ -2,6 +2,8 @@
 
 ##### Unreleased
 
+- docs: point consumer setup to the bytemain GitHub Packages Maven repository
+
 ##### 0.0.5-raft.0
 
 - feature: support custom HTTP methods via VBTransportRequest
