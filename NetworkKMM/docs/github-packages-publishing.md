@@ -163,13 +163,21 @@ By default the script publishes these tasks:
 :network:publishKotlinMultiplatformPublicationToGithubPackagesRepository
 ```
 
-The root `kotlinMultiplatform` metadata publication is intentionally last. If a target publication, runtime artifact, or plugin publication fails, consumers will not see new metadata that points at incomplete artifacts.
+The script checks which publish tasks exist on the current host before invoking Gradle. On Linux/HarmonyOS hosts, Kotlin/Native does not create iOS publish tasks, so the script skips them unless `NETWORK_REQUIRE_TASKS=true` is set. Use `NETWORK_DRY_RUN=true` to validate task selection without uploading artifacts.
+
+The root `kotlinMultiplatform` metadata publication is intentionally last in the default task list. If a target publication, runtime artifact, or plugin publication fails, consumers will not see new metadata that points at incomplete artifacts.
 
 To publish a subset while recovering or testing, override `NETWORK_PUBLISH_TASKS`:
 
 ```bash
 NETWORK_PUBLISH_TASKS=":network:publishAndroidPublicationToGithubPackagesRepository :network:publishOhosArm64PublicationToGithubPackagesRepository" \
   ./scripts/publish-github-packages.sh
+```
+
+To require every requested task to exist on the current host:
+
+```bash
+NETWORK_REQUIRE_TASKS=true ./scripts/publish-github-packages.sh
 ```
 
 ## CI Publish
@@ -185,15 +193,15 @@ git push origin network-v0.0.5
 
 Or run **Publish NetworkKMM to GitHub Packages** from GitHub Actions and optionally pass `version`.
 
-The workflow:
+The workflow splits publishing by host:
 
-- Uses `ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642`, matching the HarmonyOS CI environment used by `bytemain/soduku-harmony`.
-- Installs Android SDK platform 33 and build-tools 33.0.2 for the Android publication.
+- The Linux job uses `ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642`, matching the HarmonyOS CI environment used by `bytemain/soduku-harmony`. It publishes Android, OHOS, OHOS runtime, and the Gradle plugin.
+- The macOS job runs after the Linux job succeeds. It publishes iOS KLIB artifacts and the root `kotlinMultiplatform` metadata publication.
+- Both jobs install Android SDK platform 33 and build-tools 33.0.2 because the Android Gradle plugin is configured during project evaluation.
 - Publishes with `GITHUB_TOKEN` and `packages: write`, so no extra publish secret is required for this repository.
-- Publishes Android, iOS, OHOS, OHOS runtime, Gradle plugin, and root metadata publications through `NetworkKMM/scripts/publish-github-packages.sh`.
 
 ## Host Notes
 
 Android publication requires an Android SDK. OHOS publication requires the HarmonyOS command-line/native toolchain from the CI image.
 
-iOS here is published as Kotlin Multiplatform KLIB artifacts, not as the CocoaPods/XCFramework demo artifact. Kotlin/Native can produce Apple KLIB artifacts from non-macOS hosts only when Apple cinterop dependencies are not required. If this module later adds CocoaPods or other Apple cinterop dependencies, split the iOS publish tasks onto a macOS runner and keep the same Maven version.
+iOS here is published as Kotlin Multiplatform KLIB artifacts, not as the CocoaPods/XCFramework demo artifact. The iOS publish tasks are host-specific and should run on macOS. Linux/HarmonyOS publishing should not publish the root KMP metadata if iOS artifacts are still missing for that version.

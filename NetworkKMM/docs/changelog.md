@@ -10,6 +10,7 @@
 - docs: document manual and CI publishing to GitHub Packages
 - build: publish HarmonyOS native runtime libraries as `network-ohos-runtime`
 - build: add Gradle plugin to sync HarmonyOS native runtime libraries
+- build: split GitHub Packages CI publishing across Linux/HarmonyOS and macOS hosts
 
 ##### 0.0.4
 

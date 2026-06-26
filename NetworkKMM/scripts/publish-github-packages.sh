@@ -32,6 +32,8 @@ default_publish_tasks=(
 DEFAULT_NETWORK_PUBLISH_TASKS="${default_publish_tasks[*]}"
 NETWORK_PUBLISH_TASKS="${NETWORK_PUBLISH_TASKS:-$DEFAULT_NETWORK_PUBLISH_TASKS}"
 IFS=' ' read -r -a publish_tasks <<< "$NETWORK_PUBLISH_TASKS"
+NETWORK_REQUIRE_TASKS="${NETWORK_REQUIRE_TASKS:-false}"
+NETWORK_DRY_RUN="${NETWORK_DRY_RUN:-false}"
 
 gradle_args=(
   "--no-daemon"
@@ -52,7 +54,57 @@ if [[ -n "${GITHUB_PACKAGES_REPOSITORY:-}" ]]; then
   gradle_args+=("-PgithubPackagesRepository=$GITHUB_PACKAGES_REPOSITORY")
 fi
 
-echo "Publishing NetworkKMM publications to GitHub Packages:"
-printf '  %s\n' "${publish_tasks[@]}"
+task_cache_dir="$(mktemp -d)"
+trap 'rm -rf "$task_cache_dir"' EXIT
 
-./gradlew "${gradle_args[@]}" "${publish_tasks[@]}"
+task_exists() {
+  local task_path="$1"
+  local project_path="${task_path%:*}"
+  local task_name="${task_path##*:}"
+  local cache_name="${project_path//:/_}"
+  local task_file="$task_cache_dir/${cache_name:-root}.tasks"
+
+  if [[ ! -f "$task_file" ]]; then
+    if ! ./gradlew --no-daemon --console=plain "$project_path:tasks" --all > "$task_file" 2>&1; then
+      cat "$task_file" >&2
+      return 1
+    fi
+  fi
+
+  grep -Eq "^[[:space:]]*$task_name([[:space:]]|$|-)" "$task_file"
+}
+
+available_publish_tasks=()
+missing_publish_tasks=()
+for publish_task in "${publish_tasks[@]}"; do
+  if task_exists "$publish_task"; then
+    available_publish_tasks+=("$publish_task")
+  else
+    missing_publish_tasks+=("$publish_task")
+  fi
+done
+
+if (( ${#missing_publish_tasks[@]} > 0 )); then
+  if [[ "$NETWORK_REQUIRE_TASKS" == "true" ]]; then
+    echo "Missing required publish tasks on this host:" >&2
+    printf '  %s\n' "${missing_publish_tasks[@]}" >&2
+    exit 1
+  fi
+
+  echo "Skipping publish tasks unavailable on this host:"
+  printf '  %s\n' "${missing_publish_tasks[@]}"
+fi
+
+if (( ${#available_publish_tasks[@]} == 0 )); then
+  echo "No publish tasks are available on this host." >&2
+  exit 1
+fi
+
+echo "Publishing NetworkKMM publications to GitHub Packages:"
+printf '  %s\n' "${available_publish_tasks[@]}"
+
+if [[ "$NETWORK_DRY_RUN" == "true" ]]; then
+  ./gradlew "${gradle_args[@]}" --dry-run "${available_publish_tasks[@]}"
+else
+  ./gradlew "${gradle_args[@]}" "${available_publish_tasks[@]}"
+fi

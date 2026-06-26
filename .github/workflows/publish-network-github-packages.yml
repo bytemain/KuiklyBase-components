@@ -7,8 +7,12 @@ on:
         description: "Override Maven version, for example 0.0.5"
         required: false
         type: string
-      publish_tasks:
-        description: "Optional space-separated Gradle publish tasks"
+      android_ohos_publish_tasks:
+        description: "Optional Android/OHOS publish task override"
+        required: false
+        type: string
+      ios_publish_tasks:
+        description: "Optional iOS publish task override"
         required: false
         type: string
   push:
@@ -20,14 +24,20 @@ permissions:
   packages: write
 
 jobs:
-  publish:
-    name: Publish NetworkKMM artifacts
+  publish-android-ohos:
+    name: Publish Android, OHOS, runtime, and plugin
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642
     env:
       ANDROID_HOME: /tmp/android-sdk
       ANDROID_SDK_ROOT: /tmp/android-sdk
+      NETWORK_REQUIRE_TASKS: "true"
+      NETWORK_PUBLISH_TASKS: >-
+        :network:publishAndroidPublicationToGithubPackagesRepository
+        :network:publishOhosArm64PublicationToGithubPackagesRepository
+        :network-ohos-runtime:publishAllPublicationsToGithubPackagesRepository
+        :network-ohos-runtime-gradle-plugin:publishAllPublicationsToGithubPackagesRepository
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -56,7 +66,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ github.event.inputs.version }}
-          REQUESTED_TASKS: ${{ github.event.inputs.publish_tasks }}
+          REQUESTED_TASKS: ${{ github.event.inputs.android_ohos_publish_tasks }}
         run: |
           set -euo pipefail
           if [[ -n "${REQUESTED_VERSION:-}" ]]; then
@@ -70,6 +80,75 @@ jobs:
           fi
 
       - name: Publish NetworkKMM publications
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd NetworkKMM
+          ./scripts/publish-github-packages.sh
+
+  publish-ios-metadata:
+    name: Publish iOS and KMP metadata
+    needs: publish-android-ohos
+    runs-on: macos-latest
+    env:
+      ANDROID_HOME: /tmp/android-sdk
+      ANDROID_SDK_ROOT: /tmp/android-sdk
+      NETWORK_REQUIRE_TASKS: "true"
+      NETWORK_PUBLISH_TASKS: >-
+        :network:publishIosX64PublicationToGithubPackagesRepository
+        :network:publishIosArm64PublicationToGithubPackagesRepository
+        :network:publishIosSimulatorArm64PublicationToGithubPackagesRepository
+        :network:publishKotlinMultiplatformPublicationToGithubPackagesRepository
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o /tmp/android-commandline-tools.zip
+          unzip -q /tmp/android-commandline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_TASKS: ${{ github.event.inputs.ios_publish_tasks }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
+            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish NetworkKMM iOS publications
         shell: bash
         env:
           GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
