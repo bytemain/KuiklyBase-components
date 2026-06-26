@@ -24,15 +24,65 @@ data class NetworkQueryParameter(
     val value: String
 )
 
+data class NetworkTransferProgress(
+    val bytesTransferred: Long,
+    val bytesTotal: Long? = null
+) {
+    val hasKnownTotal: Boolean
+        get() = bytesTotal != null && bytesTotal >= 0
+}
+
+class NetworkProgressCallbacks(
+    val uploadProgress: ((NetworkTransferProgress) -> Unit)? = null,
+    val downloadProgress: ((NetworkTransferProgress) -> Unit)? = null
+)
+
+interface NetworkByteStreamSink {
+    suspend fun write(bytes: ByteArray)
+}
+
 class NetworkByteStream(
     val contentLength: Long? = null,
     private val readAllBlock: suspend () -> ByteArray,
-    private val cancelBlock: (() -> Unit)? = null
+    private val cancelBlock: (() -> Unit)? = null,
+    private val readChunksBlock: (suspend (NetworkByteStreamSink) -> Unit)? = null
 ) {
     suspend fun readAll(): ByteArray = readAllBlock()
 
+    suspend fun readChunks(sink: NetworkByteStreamSink) {
+        val chunkReader = readChunksBlock
+        if (chunkReader != null) {
+            chunkReader(sink)
+        } else {
+            sink.write(readAllBlock())
+        }
+    }
+
     fun cancel() {
         cancelBlock?.invoke()
+    }
+
+    companion object {
+        fun fromChunks(
+            contentLength: Long? = null,
+            cancelBlock: (() -> Unit)? = null,
+            readChunksBlock: suspend (NetworkByteStreamSink) -> Unit
+        ): NetworkByteStream {
+            return NetworkByteStream(
+                contentLength = contentLength,
+                readAllBlock = {
+                    val chunks = mutableListOf<ByteArray>()
+                    readChunksBlock(object : NetworkByteStreamSink {
+                        override suspend fun write(bytes: ByteArray) {
+                            chunks.add(bytes)
+                        }
+                    })
+                    mergeByteArrays(chunks)
+                },
+                cancelBlock = cancelBlock,
+                readChunksBlock = readChunksBlock
+            )
+        }
     }
 }
 
@@ -91,11 +141,14 @@ sealed class NetworkBody {
         override val contentType: String? = VBTransportContentType.BYTE.toString(),
         override val contentLength: Long? = null,
         private val readAllBlock: (suspend (path: String) -> ByteArray)? = null,
-        private val cancelBlock: (() -> Unit)? = null
+        private val cancelBlock: (() -> Unit)? = null,
+        private val openStreamBlock: (suspend (path: String) -> NetworkByteStream)? = null
     ) : NetworkBody() {
-        override val repeatable: Boolean = readAllBlock != null
+        override val repeatable: Boolean = readAllBlock != null || openStreamBlock != null
 
         suspend fun readAll(): ByteArray? = readAllBlock?.invoke(path)
+
+        suspend fun openStream(): NetworkByteStream? = openStreamBlock?.invoke(path)
 
         fun cancel() {
             cancelBlock?.invoke()
@@ -118,7 +171,8 @@ class NetworkRequest(
     val headers: MutableMap<String, String> = mutableMapOf(),
     var body: NetworkBody = NetworkBody.Empty,
     val metadata: MutableMap<String, String> = mutableMapOf(),
-    var policy: NetworkRequestPolicy = NetworkRequestPolicy()
+    var policy: NetworkRequestPolicy = NetworkRequestPolicy(),
+    var progress: NetworkProgressCallbacks = NetworkProgressCallbacks()
 ) {
     fun addQuery(name: String, value: String): NetworkRequest {
         query.add(NetworkQueryParameter(name, value))
@@ -154,7 +208,8 @@ class NetworkRequest(
             headers = headers.toMutableMap(),
             body = body,
             metadata = metadata.toMutableMap(),
-            policy = policy.copyMutable()
+            policy = policy.copyMutable(),
+            progress = progress
         )
     }
 }
@@ -202,7 +257,16 @@ class NetworkError(
     val kind: NetworkErrorKind,
     val message: String,
     val statusCode: Int? = null,
-    val cause: Throwable? = null
+    val cause: Throwable? = null,
+    val rawCode: Int? = null
+)
+
+data class NetworkEngineCapabilities(
+    val requestBodyStreaming: Boolean = false,
+    val responseBodyStreaming: Boolean = false,
+    val multipartStreaming: Boolean = false,
+    val uploadProgress: Boolean = false,
+    val downloadProgress: Boolean = false
 )
 
 enum class NetworkPriority {
@@ -280,33 +344,37 @@ internal class NetworkBodyBytes(
     val error: NetworkError? = null
 )
 
-internal suspend fun NetworkBody.toBytes(): NetworkBodyBytes {
+internal suspend fun NetworkBody.toBytes(
+    progress: ((NetworkTransferProgress) -> Unit)? = null
+): NetworkBodyBytes {
     return when (this) {
         NetworkBody.Empty -> NetworkBodyBytes(null, null)
-        is NetworkBody.Bytes -> NetworkBodyBytes(bytes, contentType)
-        is NetworkBody.Text -> NetworkBodyBytes(text.encodeToByteArray(), contentType)
-        is NetworkBody.Json -> NetworkBodyBytes(json.encodeToByteArray(), contentType)
+        is NetworkBody.Bytes -> bytes.toBodyBytes(contentType, progress)
+        is NetworkBody.Text -> text.encodeToByteArray().toBodyBytes(contentType, progress)
+        is NetworkBody.Json -> json.encodeToByteArray().toBodyBytes(contentType, progress)
         is NetworkBody.Form -> NetworkBodyBytes(
             fields.joinToString("&") {
                 "${encodeUrlComponent(it.first)}=${encodeUrlComponent(it.second)}"
-            }.encodeToByteArray(),
+            }.encodeToByteArray().also { bytes ->
+                progress?.invoke(NetworkTransferProgress(bytes.size.toLong(), bytes.size.toLong()))
+            },
             contentType
         )
-        is NetworkBody.Multipart -> multipartBodyBytes(this)
-        is NetworkBody.Stream -> NetworkBodyBytes(stream.readAll(), contentType)
+        is NetworkBody.Multipart -> multipartBodyBytes(this, progress)
+        is NetworkBody.Stream -> stream.readAllWithProgress(progress).toBodyBytes(contentType)
         is NetworkBody.FileRef -> {
-            val bytes = readAll()
+            val bytes = readAll() ?: openStream()?.readAllWithProgress(progress)
             if (bytes == null) {
                 NetworkBodyBytes(
                     null,
                     contentType,
                     NetworkError(
                         kind = NetworkErrorKind.UNKNOWN,
-                        message = "FileRef body requires a readAllBlock on this engine."
+                        message = "FileRef body requires a readAllBlock or openStreamBlock on this engine."
                     )
                 )
             } else {
-                NetworkBodyBytes(bytes, contentType)
+                bytes.toBodyBytes(contentType, progress)
             }
         }
     }
@@ -321,10 +389,13 @@ internal fun NetworkBody.cancel() {
     }
 }
 
-private suspend fun multipartBodyBytes(body: NetworkBody.Multipart): NetworkBodyBytes {
+private suspend fun multipartBodyBytes(
+    body: NetworkBody.Multipart,
+    progress: ((NetworkTransferProgress) -> Unit)? = null
+): NetworkBodyBytes {
     val builder = VBTransportMultipartBodyBuilder(body.boundary)
     body.parts.forEach { part ->
-        val bodyBytes = part.body.toBytes()
+        val bodyBytes = part.body.toBytes(progress)
         bodyBytes.error?.let {
             return NetworkBodyBytes(null, body.contentType, it)
         }
@@ -338,6 +409,41 @@ private suspend fun multipartBodyBytes(body: NetworkBody.Multipart): NetworkBody
     }
     val multipartBody = builder.build()
     return NetworkBodyBytes(multipartBody.data, multipartBody.contentType)
+}
+
+private fun ByteArray.toBodyBytes(
+    contentType: String?,
+    progress: ((NetworkTransferProgress) -> Unit)? = null
+): NetworkBodyBytes {
+    progress?.invoke(NetworkTransferProgress(size.toLong(), size.toLong()))
+    return NetworkBodyBytes(this, contentType)
+}
+
+private suspend fun NetworkByteStream.readAllWithProgress(
+    progress: ((NetworkTransferProgress) -> Unit)? = null
+): ByteArray {
+    val chunks = mutableListOf<ByteArray>()
+    var transferred = 0L
+    readChunks(object : NetworkByteStreamSink {
+        override suspend fun write(bytes: ByteArray) {
+            chunks.add(bytes)
+            transferred += bytes.size
+            progress?.invoke(NetworkTransferProgress(transferred, contentLength))
+        }
+    })
+    return mergeByteArrays(chunks)
+}
+
+private fun mergeByteArrays(chunks: List<ByteArray>): ByteArray {
+    var totalSize = 0
+    chunks.forEach { totalSize += it.size }
+    val result = ByteArray(totalSize)
+    var offset = 0
+    chunks.forEach { chunk ->
+        chunk.copyInto(result, destinationOffset = offset)
+        offset += chunk.size
+    }
+    return result
 }
 
 private fun appendPath(url: String, path: String): String {

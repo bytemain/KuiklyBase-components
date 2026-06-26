@@ -266,7 +266,7 @@ publishing {
         pom {
             name.set(publishArtifactID)
             description.set("Tencent Http Service Library.")
-            url.set("https://github.com/Tencent-TDS/KuiklyBase-components.git")
+            url.set("https://github.com/bytemain/KuiklyBase-components.git")
 
             licenses {
                 license {
@@ -276,14 +276,14 @@ publishing {
             }
             developers {
                 developer {
-                    id.set("Tencent-TDS")
-                    name.set("Tencent-TDS")
-                    organization.set("Tencent-TDS")
-                    organizationUrl.set("https://framework.tds.qq.com/")
+                    id.set("bytemain")
+                    name.set("bytemain")
+                    organization.set("bytemain")
+                    organizationUrl.set("https://github.com/bytemain")
                 }
             }
             scm {
-                url.set("https://github.com/Tencent-TDS/KuiklyBase-components")
+                url.set("https://github.com/bytemain/KuiklyBase-components")
             }
         }
     }

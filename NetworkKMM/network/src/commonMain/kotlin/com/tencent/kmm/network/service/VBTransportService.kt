@@ -69,7 +69,7 @@ object VBTransportService {
             val timeoutResponse = VBTransportBytesResponse().apply {
                 this.request = request
                 this.errorCode = VBTransportResultCode.CODE_FORCE_TIMEOUT
-                this.errorMessage = "请求超时"
+                this.errorMessage = "Request timed out"
             }
             handler?.invoke(timeoutResponse)
         }
@@ -95,7 +95,7 @@ object VBTransportService {
             val timeoutResponse = VBTransportStringResponse().apply {
                 this.request = request
                 this.errorCode = VBTransportResultCode.CODE_FORCE_TIMEOUT
-                this.errorMessage = "请求超时"
+                this.errorMessage = "Request timed out"
             }
             handler?.invoke(timeoutResponse)
         }
@@ -120,7 +120,7 @@ object VBTransportService {
             val timeoutResponse = VBTransportPostResponse().apply {
                 this.request = request
                 this.errorCode = VBTransportResultCode.CODE_FORCE_TIMEOUT
-                this.errorMessage = "请求超时"
+                this.errorMessage = "Request timed out"
             }
             handler?.invoke(timeoutResponse)
         }
@@ -145,7 +145,7 @@ object VBTransportService {
             val timeoutResponse = VBTransportGetResponse().apply {
                 this.request = request
                 this.errorCode = VBTransportResultCode.CODE_FORCE_TIMEOUT
-                this.errorMessage = "请求超时"
+                this.errorMessage = "Request timed out"
             }
             handler?.invoke(timeoutResponse)
         }

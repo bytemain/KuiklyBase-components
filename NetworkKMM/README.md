@@ -51,6 +51,9 @@ The bytemain fork publishes Android, iOS, and HarmonyOS KMP artifacts to GitHub 
 #### Unified Network P0 API
 New callers can use `NetworkClient` for the P0 request/response model, cancellation, auth/header middleware, and request policy support. See [Unified Network P0 API](./docs/unified-network-p0.md).
 
+#### Unified Network P1 API
+P1 adds ordered interceptors, progress callbacks, streaming body descriptors, engine capability flags, and stable error taxonomy. See [Unified Network P1 API](./docs/unified-network-p1.md).
+
 #### Network Permission Declaration
 ##### Android
 ```kotlin

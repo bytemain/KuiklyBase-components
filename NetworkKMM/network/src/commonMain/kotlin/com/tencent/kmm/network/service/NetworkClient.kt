@@ -21,10 +21,12 @@ import com.tencent.kmm.network.export.NetworkByteStream
 import com.tencent.kmm.network.export.NetworkDispatcher
 import com.tencent.kmm.network.export.NetworkError
 import com.tencent.kmm.network.export.NetworkErrorKind
+import com.tencent.kmm.network.export.NetworkEngineCapabilities
 import com.tencent.kmm.network.export.NetworkRequest
 import com.tencent.kmm.network.export.NetworkRequestPolicy
 import com.tencent.kmm.network.export.NetworkResponse
 import com.tencent.kmm.network.export.NetworkResponseBody
+import com.tencent.kmm.network.export.NetworkTransferProgress
 import com.tencent.kmm.network.export.VBTransportBaseResponse
 import com.tencent.kmm.network.export.VBTransportRequest
 import com.tencent.kmm.network.export.VBTransportResponse
@@ -53,6 +55,17 @@ interface NetworkRequestMiddleware {
 
 interface NetworkResponseMiddleware {
     suspend fun observe(response: NetworkResponse): NetworkResponse
+}
+
+interface NetworkInterceptorChain {
+    val request: NetworkRequest
+    val call: NetworkCall
+
+    suspend fun proceed(request: NetworkRequest): NetworkResponse
+}
+
+interface NetworkInterceptor {
+    suspend fun intercept(chain: NetworkInterceptorChain): NetworkResponse
 }
 
 class NetworkStaticHeadersMiddleware(
@@ -87,10 +100,14 @@ class NetworkClientConfig(
     val policySelector: ((NetworkRequest) -> NetworkRequestPolicy)? = null,
     val requestMiddlewares: List<NetworkRequestMiddleware> = emptyList(),
     val responseMiddlewares: List<NetworkResponseMiddleware> = emptyList(),
+    val interceptors: List<NetworkInterceptor> = emptyList(),
     val auth: NetworkAuthConfig? = null
 )
 
 interface NetworkEngine {
+    val capabilities: NetworkEngineCapabilities
+        get() = NetworkEngineCapabilities()
+
     suspend fun execute(request: NetworkRequest, call: NetworkCall): NetworkResponse
 }
 
@@ -198,7 +215,7 @@ class NetworkClient(
             if (call.isCancelled) {
                 return cancelledResponse(prepared)
             }
-            val response = engine.execute(prepared, call)
+            val response = executeWithInterceptors(prepared, call)
             val authRetry = maybeRefreshAuth(prepared, response, refreshedAuth)
             if (authRetry) {
                 refreshedAuth = true
@@ -288,6 +305,19 @@ class NetworkClient(
         return observed
     }
 
+    private suspend fun executeWithInterceptors(
+        request: NetworkRequest,
+        call: NetworkCall
+    ): NetworkResponse {
+        return RealNetworkInterceptorChain(
+            interceptors = config.interceptors,
+            index = 0,
+            request = request,
+            call = call,
+            engine = engine
+        ).proceed(request)
+    }
+
     private fun dispatcherFor(dispatcher: NetworkDispatcher): CoroutineDispatcher {
         return when (dispatcher) {
             NetworkDispatcher.IO -> Dispatchers.IO
@@ -297,8 +327,16 @@ class NetworkClient(
 }
 
 object VBTransportNetworkEngine : NetworkEngine {
+    override val capabilities: NetworkEngineCapabilities = NetworkEngineCapabilities(
+        requestBodyStreaming = false,
+        responseBodyStreaming = false,
+        multipartStreaming = false,
+        uploadProgress = true,
+        downloadProgress = true
+    )
+
     override suspend fun execute(request: NetworkRequest, call: NetworkCall): NetworkResponse {
-        val bodyBytes = request.body.toBytes()
+        val bodyBytes = request.body.toBytes(request.progress.uploadProgress)
         bodyBytes.error?.let {
             return NetworkResponse(
                 request = request,
@@ -338,10 +376,41 @@ object VBTransportNetworkEngine : NetworkEngine {
     }
 }
 
+private class RealNetworkInterceptorChain(
+    private val interceptors: List<NetworkInterceptor>,
+    private val index: Int,
+    override val request: NetworkRequest,
+    override val call: NetworkCall,
+    private val engine: NetworkEngine
+) : NetworkInterceptorChain {
+    override suspend fun proceed(request: NetworkRequest): NetworkResponse {
+        if (index >= interceptors.size) {
+            return engine.execute(request, call)
+        }
+        return interceptors[index].intercept(
+            RealNetworkInterceptorChain(
+                interceptors = interceptors,
+                index = index + 1,
+                request = request,
+                call = call,
+                engine = engine
+            )
+        )
+    }
+}
+
 private fun VBTransportBaseResponse.toNetworkResponse(request: NetworkRequest): NetworkResponse {
     val bytes = when (this) {
         is VBTransportResponse -> data.toResponseBytes()
         else -> null
+    }
+    bytes?.let {
+        request.progress.downloadProgress?.invoke(
+            NetworkTransferProgress(
+                bytesTransferred = it.size.toLong(),
+                bytesTotal = contentLengthFromHeaders(header) ?: it.size.toLong()
+            )
+        )
     }
     val status = statusCodeFromErrorCode(errorCode)
     val error = errorFromResponse(errorCode, errorMessage, status)
@@ -376,6 +445,12 @@ private fun statusCodeFromErrorCode(errorCode: Int): Int? {
     }
 }
 
+private fun contentLengthFromHeaders(headers: Map<String, List<String>>): Long? {
+    return headers.entries.firstOrNull { (name, _) ->
+        name.equals("Content-Length", ignoreCase = true)
+    }?.value?.firstOrNull()?.toLongOrNull()
+}
+
 private fun errorFromResponse(
     errorCode: Int,
     errorMessage: String,
@@ -384,18 +459,39 @@ private fun errorFromResponse(
     if (errorCode == VBTransportResultCode.CODE_OK || (statusCode != null && statusCode < 400)) {
         return null
     }
-    val kind = when {
+    val kind = classifyNetworkErrorKind(errorCode, errorMessage, statusCode)
+    return NetworkError(
+        kind = kind,
+        message = errorMessage.ifBlank { kind.name },
+        statusCode = statusCode,
+        rawCode = errorCode
+    )
+}
+
+internal fun classifyNetworkErrorKind(
+    errorCode: Int,
+    errorMessage: String,
+    statusCode: Int?
+): NetworkErrorKind {
+    val normalizedMessage = errorMessage.lowercase()
+    return when {
         errorCode == VBTransportResultCode.CODE_CANCELED -> NetworkErrorKind.CANCELLED
         errorCode == VBTransportResultCode.CODE_FORCE_TIMEOUT -> NetworkErrorKind.TIMEOUT
         statusCode == 401 || statusCode == 403 -> NetworkErrorKind.AUTH
         statusCode != null -> NetworkErrorKind.HTTP_STATUS
+        "timeout" in normalizedMessage || "timed out" in normalizedMessage -> NetworkErrorKind.TIMEOUT
+        "dns" in normalizedMessage ||
+            "resolve" in normalizedMessage ||
+            "unknown host" in normalizedMessage ||
+            "host not found" in normalizedMessage -> NetworkErrorKind.DNS
+        "tls" in normalizedMessage ||
+            "ssl" in normalizedMessage ||
+            "certificate" in normalizedMessage -> NetworkErrorKind.TLS
+        "connect" in normalizedMessage ||
+            "connection refused" in normalizedMessage ||
+            "network is unreachable" in normalizedMessage -> NetworkErrorKind.CONNECT
         else -> NetworkErrorKind.UNKNOWN
     }
-    return NetworkError(
-        kind = kind,
-        message = errorMessage.ifBlank { kind.name },
-        statusCode = statusCode
-    )
 }
 
 private fun cancelledResponse(request: NetworkRequest): NetworkResponse {

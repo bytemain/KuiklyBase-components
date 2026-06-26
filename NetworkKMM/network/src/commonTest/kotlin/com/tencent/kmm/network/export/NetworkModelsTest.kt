@@ -112,4 +112,36 @@ class NetworkModelsTest {
         assertNull(bodyBytes.bytes)
         assertEquals(NetworkErrorKind.UNKNOWN, bodyBytes.error?.kind)
     }
+
+    @Test
+    fun chunkedStreamReportsUploadProgress() = runBlocking {
+        val progress = mutableListOf<NetworkTransferProgress>()
+        val stream = NetworkByteStream.fromChunks(contentLength = 5) { sink ->
+            sink.write(byteArrayOf(1, 2))
+            sink.write(byteArrayOf(3, 4, 5))
+        }
+
+        val bodyBytes = NetworkBody.Stream(stream).toBytes { progress.add(it) }
+
+        assertEquals(listOf(1, 2, 3, 4, 5), assertNotNull(bodyBytes.bytes).map { it.toInt() })
+        assertEquals(listOf(2L, 5L), progress.map { it.bytesTransferred })
+        assertEquals(listOf(5L, 5L), progress.map { it.bytesTotal })
+    }
+
+    @Test
+    fun fileRefCanMaterializeFromStreamHook() = runBlocking {
+        val body = NetworkBody.FileRef(
+            path = "/tmp/file.bin",
+            openStreamBlock = {
+                NetworkByteStream.fromChunks(contentLength = 3) { sink ->
+                    sink.write(byteArrayOf(7))
+                    sink.write(byteArrayOf(8, 9))
+                }
+            }
+        )
+
+        val bodyBytes = body.toBytes()
+
+        assertEquals(listOf(7, 8, 9), assertNotNull(bodyBytes.bytes).map { it.toInt() })
+    }
 }

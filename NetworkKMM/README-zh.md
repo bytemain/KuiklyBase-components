@@ -51,6 +51,9 @@ bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 Gi
 #### 统一 Network P0 API
 新调用方可以使用 `NetworkClient` 接入 P0 request/response model、取消、auth/header middleware 和 request policy。见 [Unified Network P0 API](./docs/unified-network-p0.md)。
 
+#### 统一 Network P1 API
+P1 增加有序 interceptor、进度回调、流式 body 描述、engine capability 标记和稳定错误分类。见 [Unified Network P1 API](./docs/unified-network-p1.md)。
+
 #### 网络权限声明
 ##### Android
 ```kotlin

@@ -5,6 +5,8 @@
 - docs: point consumer setup to the bytemain GitHub Packages Maven repository
 - docs: add file-based GitHub Packages credentials with environment fallback
 - feature: add P0 unified NetworkClient request/response model, cancellation, auth middleware, and policy API
+- feature: add P1 NetworkClient interceptors, progress callbacks, streaming descriptors, and error taxonomy
+- build: point NetworkKMM publishing metadata to the bytemain fork repository
 
 ##### 0.0.5-raft.0
 

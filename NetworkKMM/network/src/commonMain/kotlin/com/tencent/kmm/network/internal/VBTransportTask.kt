@@ -104,7 +104,7 @@ class VBTransportTask(
             if (isCanceledOrRemoved()) {
                 logI("execute() request task is canceled")
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
                 return@let
@@ -125,7 +125,7 @@ class VBTransportTask(
             logI("execute() request task is canceled")
             handler?.let {
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
             } ?: run {
@@ -152,7 +152,7 @@ class VBTransportTask(
             logI("execute() request task is canceled")
             handler?.let {
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
             } ?: run {
@@ -175,7 +175,7 @@ class VBTransportTask(
             logI("execute() request task is canceled before")
             handler?.let {
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
             } ?: run {
@@ -198,7 +198,7 @@ class VBTransportTask(
             logI("execute() request task is canceled before")
             handler?.let {
                 response.errorCode = VBTransportResultCode.CODE_CANCELED
-                response.errorMessage = "请求已被取消"
+                response.errorMessage = "Request has been canceled"
                 logI("execute() invoke failHandler，task has been canceled")
                 it(response)
             } ?: run {
