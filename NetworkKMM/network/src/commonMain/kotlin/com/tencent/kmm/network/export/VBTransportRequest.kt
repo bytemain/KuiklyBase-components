@@ -44,12 +44,10 @@ class VBTransportMultipartBodyBuilder(
         name: String,
         value: String
     ): VBTransportMultipartBodyBuilder {
-        appendString("--$boundary\r\n")
-        appendString("Content-Disposition: form-data; name=\"${sanitizeHeaderValue(name)}\"\r\n")
-        appendString("\r\n")
-        appendString(value)
-        appendString("\r\n")
-        return this
+        return addPart(
+            name = name,
+            bytes = value.encodeToByteArray()
+        )
     }
 
     fun addFile(
@@ -58,12 +56,42 @@ class VBTransportMultipartBodyBuilder(
         bytes: ByteArray,
         contentType: String = VBTransportContentType.BYTE.toString()
     ): VBTransportMultipartBodyBuilder {
-        appendString("--$boundary\r\n")
-        appendString(
-            "Content-Disposition: form-data; name=\"${sanitizeHeaderValue(name)}\"; " +
-                    "filename=\"${sanitizeHeaderValue(fileName)}\"\r\n"
+        return addPart(
+            name = name,
+            bytes = bytes,
+            fileName = fileName,
+            contentType = contentType
         )
-        appendString("Content-Type: $contentType\r\n")
+    }
+
+    fun addPart(
+        name: String,
+        bytes: ByteArray,
+        fileName: String? = null,
+        contentType: String? = null,
+        headers: Map<String, String> = emptyMap()
+    ): VBTransportMultipartBodyBuilder {
+        appendString("--$boundary\r\n")
+        val disposition = buildString {
+            append("Content-Disposition: form-data; name=\"")
+            append(sanitizeHeaderValue(name))
+            append("\"")
+            fileName?.let {
+                append("; filename=\"")
+                append(sanitizeHeaderValue(it))
+                append("\"")
+            }
+        }
+        appendString("$disposition\r\n")
+        val partHeaders = headers.toMutableMap()
+        contentType?.let {
+            if (!partHeaders.keys.any { key -> key.equals("Content-Type", ignoreCase = true) }) {
+                partHeaders["Content-Type"] = it
+            }
+        }
+        partHeaders.forEach { (headerName, headerValue) ->
+            appendString("${sanitizeHeaderName(headerName)}: ${sanitizeHeaderValue(headerValue)}\r\n")
+        }
         appendString("\r\n")
         chunks.add(bytes)
         appendString("\r\n")
@@ -85,6 +113,11 @@ class VBTransportMultipartBodyBuilder(
 
     private fun sanitizeHeaderValue(value: String): String =
         value.replace("\"", "%22")
+            .replace("\r", "")
+            .replace("\n", "")
+
+    private fun sanitizeHeaderName(value: String): String =
+        value.replace(":", "")
             .replace("\r", "")
             .replace("\n", "")
 

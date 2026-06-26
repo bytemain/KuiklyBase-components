@@ -16,9 +16,12 @@
  */
 package com.tencent.kmm.network.export
 
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class NetworkModelsTest {
@@ -66,5 +69,47 @@ class NetworkModelsTest {
 
         assertFalse(streamBody.repeatable)
         assertFalse(fileRefBody.repeatable)
+    }
+
+    @Test
+    fun multipartBodySerializesThroughSharedTransportBuilder() = runBlocking {
+        val body = NetworkBody.Multipart(
+            parts = listOf(
+                NetworkMultipartPart("meta", NetworkBody.Text("hello")),
+                NetworkMultipartPart(
+                    name = "file",
+                    fileName = "sample.txt",
+                    headers = mapOf("X-Part" to "ok"),
+                    body = NetworkBody.Text("payload", contentType = "text/plain")
+                )
+            ),
+            boundary = "BoundaryForTest"
+        )
+
+        val bodyBytes = body.toBytes()
+        val raw = assertNotNull(bodyBytes.bytes).decodeToString()
+
+        assertEquals("multipart/form-data; boundary=BoundaryForTest", bodyBytes.contentType)
+        assertTrue(raw.contains("--BoundaryForTest\r\n"))
+        assertTrue(raw.contains("Content-Disposition: form-data; name=\"meta\""))
+        assertTrue(raw.contains("Content-Type: text/plain; charset=utf-8"))
+        assertTrue(raw.contains("Content-Disposition: form-data; name=\"file\"; filename=\"sample.txt\""))
+        assertTrue(raw.contains("X-Part: ok"))
+        assertTrue(raw.contains("payload"))
+    }
+
+    @Test
+    fun multipartBodyPropagatesPartBodyErrors() = runBlocking {
+        val body = NetworkBody.Multipart(
+            parts = listOf(
+                NetworkMultipartPart("file", NetworkBody.FileRef(path = "/tmp/missing-reader.bin"))
+            ),
+            boundary = "BoundaryForTest"
+        )
+
+        val bodyBytes = body.toBytes()
+
+        assertNull(bodyBytes.bytes)
+        assertEquals(NetworkErrorKind.UNKNOWN, bodyBytes.error?.kind)
     }
 }

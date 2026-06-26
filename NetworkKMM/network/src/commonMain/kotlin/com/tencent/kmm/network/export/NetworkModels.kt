@@ -292,7 +292,7 @@ internal suspend fun NetworkBody.toBytes(): NetworkBodyBytes {
             }.encodeToByteArray(),
             contentType
         )
-        is NetworkBody.Multipart -> NetworkBodyBytes(serializeMultipart(this), contentType)
+        is NetworkBody.Multipart -> multipartBodyBytes(this)
         is NetworkBody.Stream -> NetworkBodyBytes(stream.readAll(), contentType)
         is NetworkBody.FileRef -> {
             val bytes = readAll()
@@ -321,49 +321,23 @@ internal fun NetworkBody.cancel() {
     }
 }
 
-private suspend fun serializeMultipart(body: NetworkBody.Multipart): ByteArray {
-    val chunks = mutableListOf<ByteArray>()
+private suspend fun multipartBodyBytes(body: NetworkBody.Multipart): NetworkBodyBytes {
+    val builder = VBTransportMultipartBodyBuilder(body.boundary)
     body.parts.forEach { part ->
-        chunks.add("--${body.boundary}\r\n".encodeToByteArray())
-        val disposition = buildString {
-            append("Content-Disposition: form-data; name=\"")
-            append(sanitizeMultipartValue(part.name))
-            append("\"")
-            part.fileName?.let {
-                append("; filename=\"")
-                append(sanitizeMultipartValue(it))
-                append("\"")
-            }
-        }
-        chunks.add("$disposition\r\n".encodeToByteArray())
         val bodyBytes = part.body.toBytes()
-        val headers = part.headers.toMutableMap()
-        bodyBytes.contentType?.let {
-            if (!headers.containsKey("Content-Type")) {
-                headers["Content-Type"] = it
-            }
+        bodyBytes.error?.let {
+            return NetworkBodyBytes(null, body.contentType, it)
         }
-        headers.forEach { (name, value) ->
-            chunks.add("${sanitizeHeaderName(name)}: ${sanitizeHeaderValue(value)}\r\n".encodeToByteArray())
-        }
-        chunks.add("\r\n".encodeToByteArray())
-        chunks.add(bodyBytes.bytes ?: ByteArray(0))
-        chunks.add("\r\n".encodeToByteArray())
+        builder.addPart(
+            name = part.name,
+            bytes = bodyBytes.bytes ?: ByteArray(0),
+            fileName = part.fileName,
+            contentType = bodyBytes.contentType,
+            headers = part.headers
+        )
     }
-    chunks.add("--${body.boundary}--\r\n".encodeToByteArray())
-    return mergeByteArrays(chunks)
-}
-
-private fun mergeByteArrays(chunks: List<ByteArray>): ByteArray {
-    var totalSize = 0
-    chunks.forEach { totalSize += it.size }
-    val result = ByteArray(totalSize)
-    var offset = 0
-    chunks.forEach { chunk ->
-        chunk.copyInto(result, offset)
-        offset += chunk.size
-    }
-    return result
+    val multipartBody = builder.build()
+    return NetworkBodyBytes(multipartBody.data, multipartBody.contentType)
 }
 
 private fun appendPath(url: String, path: String): String {
@@ -371,20 +345,6 @@ private fun appendPath(url: String, path: String): String {
     val trimmedPath = path.trimStart('/')
     return "$trimmedUrl/$trimmedPath"
 }
-
-private fun sanitizeMultipartValue(value: String): String =
-    value.replace("\"", "%22")
-        .replace("\r", "")
-        .replace("\n", "")
-
-private fun sanitizeHeaderName(value: String): String =
-    value.replace(":", "")
-        .replace("\r", "")
-        .replace("\n", "")
-
-private fun sanitizeHeaderValue(value: String): String =
-    value.replace("\r", "")
-        .replace("\n", "")
 
 private fun defaultNetworkMultipartBoundary(): String =
     "KuiklyNetworkBoundary${Random.nextInt(0, Int.MAX_VALUE)}"
