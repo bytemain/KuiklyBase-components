@@ -67,7 +67,7 @@ task_exists() {
   if [[ ! -f "$task_file" ]]; then
     if ! ./gradlew --no-daemon --console=plain "$project_path:tasks" --all > "$task_file" 2>&1; then
       cat "$task_file" >&2
-      return 1
+      return 2
     fi
   fi
 
@@ -80,6 +80,11 @@ for publish_task in "${publish_tasks[@]}"; do
   if task_exists "$publish_task"; then
     available_publish_tasks+=("$publish_task")
   else
+    task_status=$?
+    if [[ "$task_status" -eq 2 ]]; then
+      echo "Unable to discover Gradle publish tasks." >&2
+      exit 1
+    fi
     missing_publish_tasks+=("$publish_task")
   fi
 done

@@ -15,6 +15,10 @@ on:
         description: "Optional iOS publish task override"
         required: false
         type: string
+      metadata_publish_tasks:
+        description: "Optional KMP metadata publish task override"
+        required: false
+        type: string
   push:
     tags:
       - "network-v*"
@@ -91,9 +95,8 @@ jobs:
           cd NetworkKMM
           ./scripts/publish-github-packages.sh
 
-  publish-ios-metadata:
-    name: Publish iOS and KMP metadata
-    needs: publish-android-ohos
+  publish-ios:
+    name: Publish iOS
     runs-on: macos-latest
     env:
       ANDROID_HOME: /tmp/android-sdk
@@ -103,7 +106,6 @@ jobs:
         :network:publishIosX64PublicationToGithubPackagesRepository
         :network:publishIosArm64PublicationToGithubPackagesRepository
         :network:publishIosSimulatorArm64PublicationToGithubPackagesRepository
-        :network:publishKotlinMultiplatformPublicationToGithubPackagesRepository
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -149,6 +151,74 @@ jobs:
           fi
 
       - name: Publish NetworkKMM iOS publications
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd NetworkKMM
+          ./scripts/publish-github-packages.sh
+
+  publish-kmp-metadata:
+    name: Publish KMP metadata
+    needs:
+      - publish-android-ohos
+      - publish-ios
+    runs-on: macos-latest
+    env:
+      ANDROID_HOME: /tmp/android-sdk
+      ANDROID_SDK_ROOT: /tmp/android-sdk
+      NETWORK_REQUIRE_TASKS: "true"
+      NETWORK_PUBLISH_TASKS: >-
+        :network:publishKotlinMultiplatformPublicationToGithubPackagesRepository
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o /tmp/android-commandline-tools.zip
+          unzip -q /tmp/android-commandline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_TASKS: ${{ github.event.inputs.metadata_publish_tasks }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
+            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "NETWORK_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish NetworkKMM metadata publication
         shell: bash
         env:
           GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}

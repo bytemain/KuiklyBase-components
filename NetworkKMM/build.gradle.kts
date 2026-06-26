@@ -1,10 +1,10 @@
 plugins {
     // trick: for the same plugin versions in all sub-modules
-    // 版本使用 libs.versions.toml 文件进行管理，在 /gradle 目录下
-    id("com.android.application").version("8.1.0").apply(false)
-    id("com.android.library").version("8.1.0").apply(false)
-    kotlin("multiplatform").version("2.0.21-KBA-003").apply(false)
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false
+    // Keep plugin versions aligned with the NetworkKMM OHOS/KSP toolchain.
+    id("com.android.application").version("8.13.2").apply(false)
+    id("com.android.library").version("8.13.2").apply(false)
+    kotlin("multiplatform").version("2.0.21-KBA-010").apply(false)
+    id("com.google.devtools.ksp") version "2.3.7" apply false
     id("com.tencent.kuiklybase.knoi.plugin").version("0.0.4").apply(false)
 }
 

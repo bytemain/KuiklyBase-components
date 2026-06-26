@@ -11,6 +11,9 @@
 - build: publish HarmonyOS native runtime libraries as `network-ohos-runtime`
 - build: add Gradle plugin to sync HarmonyOS native runtime libraries
 - build: split GitHub Packages CI publishing across Linux/HarmonyOS and macOS hosts
+- build: run NetworkKMM Android/OHOS and iOS publish jobs in parallel, then publish KMP metadata
+- build: align NetworkKMM Kotlin, KSP, Android Gradle Plugin, and Gradle wrapper versions
+- build: fail publishing early when Gradle task discovery cannot configure the project
 
 ##### 0.0.4
 
