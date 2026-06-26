@@ -48,6 +48,9 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 #### GitHub Packages
 The bytemain fork publishes Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. GitHub Packages Maven requires credentials even for public packages. For local builds, copy [`docs/github-packages.properties.example`](./docs/github-packages.properties.example) to `github-packages.properties` in the consuming repository root and set a classic PAT with `read:packages`. If the file is missing, Gradle falls back to `GITHUB_ACTOR`, `GITHUB_PACKAGES_TOKEN`, or `GITHUB_TOKEN`. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
 
+#### Unified Network P0 API
+New callers can use `NetworkClient` for the P0 request/response model, cancellation, auth/header middleware, and request policy support. See [Unified Network P0 API](./docs/unified-network-p0.md).
+
 #### Network Permission Declaration
 ##### Android
 ```kotlin

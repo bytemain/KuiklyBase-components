@@ -48,6 +48,9 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 #### GitHub Packages
 bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 GitHub Packages。GitHub Packages Maven 即使是 public 包也需要 credentials。本地构建时，把 [`docs/github-packages.properties.example`](./docs/github-packages.properties.example) 复制到消费仓库根目录的 `github-packages.properties`，填入带 `read:packages` 权限的 classic PAT；文件不存在时，Gradle 会回退读取 `GITHUB_ACTOR`、`GITHUB_PACKAGES_TOKEN` 或 `GITHUB_TOKEN`。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
 
+#### 统一 Network P0 API
+新调用方可以使用 `NetworkClient` 接入 P0 request/response model、取消、auth/header middleware 和 request policy。见 [Unified Network P0 API](./docs/unified-network-p0.md)。
+
 #### 网络权限声明
 ##### Android
 ```kotlin

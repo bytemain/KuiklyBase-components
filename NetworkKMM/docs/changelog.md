@@ -4,6 +4,7 @@
 
 - docs: point consumer setup to the bytemain GitHub Packages Maven repository
 - docs: add file-based GitHub Packages credentials with environment fallback
+- feature: add P0 unified NetworkClient request/response model, cancellation, auth middleware, and policy API
 
 ##### 0.0.5-raft.0
 
