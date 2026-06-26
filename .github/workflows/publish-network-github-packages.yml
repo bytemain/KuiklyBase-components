@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Override Maven version, for example 0.0.5"
+        description: "Override Maven version, for example 0.0.5-raft.0"
         required: false
         type: string
       android_ohos_publish_tasks:
@@ -99,10 +99,16 @@ jobs:
           REQUESTED_TASKS: ${{ github.event.inputs.android_ohos_publish_tasks }}
         run: |
           set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' NetworkKMM/gradle.properties | tail -n 1)"
           if [[ -n "${REQUESTED_VERSION:-}" ]]; then
             echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
           elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
-            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+            tag_version="${GITHUB_REF_NAME#network-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match NetworkKMM mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
           fi
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then
@@ -166,10 +172,16 @@ jobs:
           REQUESTED_TASKS: ${{ github.event.inputs.ios_publish_tasks }}
         run: |
           set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' NetworkKMM/gradle.properties | tail -n 1)"
           if [[ -n "${REQUESTED_VERSION:-}" ]]; then
             echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
           elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
-            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+            tag_version="${GITHUB_REF_NAME#network-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match NetworkKMM mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
           fi
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then
@@ -234,10 +246,16 @@ jobs:
           REQUESTED_TASKS: ${{ github.event.inputs.metadata_publish_tasks }}
         run: |
           set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' NetworkKMM/gradle.properties | tail -n 1)"
           if [[ -n "${REQUESTED_VERSION:-}" ]]; then
             echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
           elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == network-v* ]]; then
-            echo "MAVEN_VERSION=${GITHUB_REF_NAME#network-v}" >> "$GITHUB_ENV"
+            tag_version="${GITHUB_REF_NAME#network-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match NetworkKMM mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
           fi
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then

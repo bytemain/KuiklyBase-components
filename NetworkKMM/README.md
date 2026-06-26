@@ -20,7 +20,7 @@ repositories {
 }
 
 // Add the dependency in build.gradle.kts / build.ohos.gradle.kts
-implementation("com.tencent.kuiklybase:network:0.0.4")
+implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 // For more details, refer to the demo apps for each platform (see androidApp/, iosApp/, ohosApp/ directories)
 ```
 

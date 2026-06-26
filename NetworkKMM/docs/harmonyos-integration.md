@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.tencent.kuiklybase:network:0.0.4")
+    implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 }
 ```
 
@@ -123,7 +123,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 plugins {
-    id("com.tencent.kuiklybase.network.ohos-runtime") version "0.0.4"
+    id("com.tencent.kuiklybase.network.ohos-runtime") version "0.0.5-raft.0"
 }
 
 networkOhosRuntime {
@@ -241,7 +241,7 @@ VBTransportInitHelper.init(config)
 
 ## 6. 接入检查清单
 
-- [ ] 已添加 `com.tencent.kuiklybase:network:0.0.4`
+- [ ] 已添加 `com.tencent.kuiklybase:network:0.0.5-raft.0`
 - [ ] 已添加腾讯 Maven 仓库或 GitHub Packages Maven 仓库
 - [ ] 已声明 `INTERNET`、`GET_NETWORK_INFO`、`GET_WIFI_INFO`
 - [ ] 已添加权限 reason 字符串

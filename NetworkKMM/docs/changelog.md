@@ -2,6 +2,8 @@
 
 ##### Unreleased
 
+##### 0.0.5-raft.0
+
 - feature: support custom HTTP methods via VBTransportRequest
 - feature: add multipart/form-data request body builder
 - docs: add PUT and binary upload examples

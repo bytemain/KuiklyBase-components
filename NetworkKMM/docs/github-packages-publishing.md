@@ -42,7 +42,7 @@ arm64-v8a/libc++_shared.so
 Consumers should depend on the root artifact and let Gradle metadata select the platform artifact:
 
 ```kotlin
-implementation("com.tencent.kuiklybase:network:0.0.4")
+implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 ```
 
 HarmonyOS apps still need these native runtime libraries in the app entry module. The Maven/KLIB publication provides the Kotlin artifact; the Gradle plugin resolves `network-ohos-runtime` and copies the `.so` files into `entry/libs/arm64-v8a/`.
@@ -113,7 +113,7 @@ Apply the plugin from the Gradle project that owns the OHOS app directory:
 
 ```kotlin
 plugins {
-    id("com.tencent.kuiklybase.network.ohos-runtime") version "0.0.4"
+    id("com.tencent.kuiklybase.network.ohos-runtime") version "0.0.5-raft.0"
 }
 
 networkOhosRuntime {
@@ -133,7 +133,7 @@ The plugin version is also used as the default `network-ohos-runtime` artifact v
 
 ```kotlin
 networkOhosRuntime {
-    version.set("0.0.4")
+    version.set("0.0.5-raft.0")
 }
 ```
 
@@ -144,7 +144,7 @@ Use a classic GitHub PAT with `write:packages`:
 ```bash
 export GITHUB_PACKAGES_USERNAME=bytemain
 export GITHUB_PACKAGES_TOKEN=ghp_xxx
-export MAVEN_VERSION=0.0.5
+export MAVEN_VERSION=0.0.5-raft.0
 
 cd NetworkKMM
 ./scripts/publish-github-packages.sh
@@ -187,9 +187,11 @@ The workflow is `.github/workflows/publish-network-github-packages.yml`.
 It can be triggered in two ways:
 
 ```bash
-git tag network-v0.0.5
-git push origin network-v0.0.5
+git tag network-v0.0.5-raft.0
+git push origin network-v0.0.5-raft.0
 ```
+
+The tag version must match `mavenVersion` in `NetworkKMM/gradle.properties`; CI fails early if they differ.
 
 Or run **Publish NetworkKMM to GitHub Packages** from GitHub Actions and optionally pass `version`.
 
