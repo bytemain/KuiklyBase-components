@@ -14,6 +14,7 @@
 - build: run NetworkKMM Android/OHOS and iOS publish jobs in parallel, then publish KMP metadata
 - build: align NetworkKMM Kotlin, KSP, Android Gradle Plugin, and Gradle wrapper versions
 - build: fail publishing early when Gradle task discovery cannot configure the project
+- build: keep NetworkKMM KSP on the Kotlin 2.0.21-compatible line and disable the KBA suffix version warning
 
 ##### 0.0.4
 
