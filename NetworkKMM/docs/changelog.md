@@ -8,6 +8,8 @@
 - docs: add HarmonyOS native library integration guide
 - build: add GitHub Packages publishing for Android, iOS, and OHOS artifacts
 - docs: document manual and CI publishing to GitHub Packages
+- build: publish HarmonyOS native runtime libraries as `network-ohos-runtime`
+- build: add Gradle plugin to sync HarmonyOS native runtime libraries
 
 ##### 0.0.4
 

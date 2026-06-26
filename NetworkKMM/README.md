@@ -71,24 +71,26 @@ The bytemain fork can publish Android, iOS, and HarmonyOS KMP artifacts to GitHu
 ```
 
 #### HarmonyOS Native Libraries
-HarmonyOS uses libcurl through `pbcurlwrapper`, so app projects must integrate native libraries in addition to the Kotlin dependency and permissions. See [HarmonyOS Integration](./docs/harmonyos-integration.md) for the complete steps.
+HarmonyOS uses libcurl through `pbcurlwrapper`, so app projects must integrate native libraries in addition to the Kotlin dependency and permissions. The bytemain fork publishes these libraries as `com.tencent.kuiklybase:network-ohos-runtime` and provides a Gradle plugin to copy them into the OHOS entry module. See [HarmonyOS Integration](./docs/harmonyos-integration.md) for the complete steps.
 
 Required libraries:
 
-| Library | Purpose | Download |
-| --- | --- | --- |
-| `libpbcurlwrapper.so` | curl request wrapper | [download](https://drive.weixin.qq.com/s?k=AJEAIQdfAAoOl8vBYTAbQAJgZ2AA8) |
-| `libopenssl.so` | HTTPS/SSL support | [download](https://drive.weixin.qq.com/s?k=AJEAIQdfAAohnXGmhhAbQAJgZ2AA8) |
+| Library | Purpose |
+| --- | --- |
+| `libpbcurlwrapper.so` | curl request wrapper |
+| `libopenssl.so` | HTTPS/SSL support |
+| `libc++_shared.so` | C++ runtime required by the native libraries |
 
 Place them here:
 
 ```text
 ohosApp/entry/libs/arm64-v8a/
 ├── libpbcurlwrapper.so
-└── libopenssl.so
+├── libopenssl.so
+└── libc++_shared.so
 ```
 
-If the app has a native entry CMake target, import both libraries with `add_library(... IMPORTED)` in `ohosApp/entry/src/main/cpp/CMakeLists.txt` and add `pbcurlwrapper openssl` to `target_link_libraries`. The sample project already includes these libraries under `NetworkKMM/ohosApp/entry/libs/arm64-v8a/`; external app projects must copy or download them into their own entry module.
+If the app has a native entry CMake target, import `pbcurlwrapper` and `openssl` with `add_library(... IMPORTED)` in `ohosApp/entry/src/main/cpp/CMakeLists.txt` and add `pbcurlwrapper openssl` to `target_link_libraries`. The sample project already includes these libraries under `NetworkKMM/ohosApp/entry/libs/arm64-v8a/`.
 
 #### Initialization
 ```kotlin

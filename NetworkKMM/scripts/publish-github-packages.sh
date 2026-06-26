@@ -19,7 +19,17 @@ if [[ -z "$GITHUB_PACKAGES_TOKEN" ]]; then
   exit 1
 fi
 
-DEFAULT_NETWORK_PUBLISH_TASKS=":network:publishAndroidPublicationToGithubPackagesRepository :network:publishIosX64PublicationToGithubPackagesRepository :network:publishIosArm64PublicationToGithubPackagesRepository :network:publishIosSimulatorArm64PublicationToGithubPackagesRepository :network:publishOhosArm64PublicationToGithubPackagesRepository :network:publishKotlinMultiplatformPublicationToGithubPackagesRepository"
+default_publish_tasks=(
+  ":network:publishAndroidPublicationToGithubPackagesRepository"
+  ":network:publishIosX64PublicationToGithubPackagesRepository"
+  ":network:publishIosArm64PublicationToGithubPackagesRepository"
+  ":network:publishIosSimulatorArm64PublicationToGithubPackagesRepository"
+  ":network:publishOhosArm64PublicationToGithubPackagesRepository"
+  ":network-ohos-runtime:publishAllPublicationsToGithubPackagesRepository"
+  ":network-ohos-runtime-gradle-plugin:publishAllPublicationsToGithubPackagesRepository"
+  ":network:publishKotlinMultiplatformPublicationToGithubPackagesRepository"
+)
+DEFAULT_NETWORK_PUBLISH_TASKS="${default_publish_tasks[*]}"
 NETWORK_PUBLISH_TASKS="${NETWORK_PUBLISH_TASKS:-$DEFAULT_NETWORK_PUBLISH_TASKS}"
 IFS=' ' read -r -a publish_tasks <<< "$NETWORK_PUBLISH_TASKS"
 

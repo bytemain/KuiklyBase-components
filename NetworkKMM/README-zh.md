@@ -71,24 +71,26 @@ bytemain fork 可以发布 Android、iOS、HarmonyOS 三端 KMP artifacts 到 Gi
 ```
 
 #### HarmonyOS Native 库接入
-鸿蒙端底层通过 `pbcurlwrapper` 调用 libcurl，除了 Kotlin 依赖和权限，还必须集成 native 库。详细步骤见 [HarmonyOS 接入文档](./docs/harmonyos-integration.md)。
+鸿蒙端底层通过 `pbcurlwrapper` 调用 libcurl，除了 Kotlin 依赖和权限，还必须集成 native 库。bytemain fork 会把这些库发布成 `com.tencent.kuiklybase:network-ohos-runtime`，并提供 Gradle 插件复制到 OHOS entry 模块。详细步骤见 [HarmonyOS 接入文档](./docs/harmonyos-integration.md)。
 
-必须下载并放置以下两个 `.so` 文件：
+必须放置以下 `.so` 文件：
 
-| 库文件 | 作用 | 下载链接 |
-| --- | --- | --- |
-| `libpbcurlwrapper.so` | curl 网络请求封装库 | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAoOl8vBYTAbQAJgZ2AA8) |
-| `libopenssl.so` | HTTPS/SSL 支持库 | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAohnXGmhhAbQAJgZ2AA8) |
+| 库文件 | 作用 |
+| --- | --- |
+| `libpbcurlwrapper.so` | curl 网络请求封装库 |
+| `libopenssl.so` | HTTPS/SSL 支持库 |
+| `libc++_shared.so` | native 库依赖的 C++ runtime |
 
 放置路径：
 
 ```text
 ohosApp/entry/libs/arm64-v8a/
 ├── libpbcurlwrapper.so
-└── libopenssl.so
+├── libopenssl.so
+└── libc++_shared.so
 ```
 
-如果业务鸿蒙工程存在 native entry CMake target，还需要在 `ohosApp/entry/src/main/cpp/CMakeLists.txt` 中 `add_library(... IMPORTED)` 并在 `target_link_libraries` 中链接 `pbcurlwrapper openssl`。当前 demo 工程已在 `NetworkKMM/ohosApp/entry/libs/arm64-v8a/` 内置上述库文件；外部项目接入时需要自行拷贝或下载。
+如果业务鸿蒙工程存在 native entry CMake target，还需要在 `ohosApp/entry/src/main/cpp/CMakeLists.txt` 中 `add_library(... IMPORTED)` 并在 `target_link_libraries` 中链接 `pbcurlwrapper openssl`。当前 demo 工程已在 `NetworkKMM/ohosApp/entry/libs/arm64-v8a/` 内置上述库文件。
 
 #### 初始化
 ```kotlin

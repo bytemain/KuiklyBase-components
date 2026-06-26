@@ -27,3 +27,5 @@ rootProject.name = "NetworkKMM"
 include(":androidApp")
 include(":network")
 include(":network-sample")
+include(":network-ohos-runtime")
+include(":network-ohos-runtime-gradle-plugin")

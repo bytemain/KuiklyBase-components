@@ -1,6 +1,6 @@
 # KMM Network HarmonyOS 接入指南
 
-本文补充 HarmonyOS 侧接入 KMM Network 时必须处理的 native 库、权限、CMake 链接和初始化步骤。Android/iOS 主要接入 Kotlin 依赖和平台网络权限；HarmonyOS 侧底层通过 `pbcurlwrapper` 封装 libcurl，因此还需要额外集成 `.so` 文件。
+本文补充 HarmonyOS 侧接入 KMM Network 时必须处理的 native 库、权限、CMake 链接和初始化步骤。Android/iOS 主要接入 Kotlin 依赖和平台网络权限；HarmonyOS 侧底层通过 `pbcurlwrapper` 封装 libcurl，因此还需要把 runtime `.so` 同步到 OHOS entry 模块。
 
 参考文档：[KMM Network 鸿蒙端接入使用指南](https://github.com/Kuikly-contrib/KuiklyLibGallery/blob/main/docs/KMM_Network_HarmonyOS_Integration_Guide.md)。
 
@@ -78,16 +78,72 @@ dependencies {
 }
 ```
 
-## 3. 添加必需 Native 库
+## 3. 同步必需 Native 库
 
-HarmonyOS 接入必须包含以下 native 库：
+HarmonyOS 接入必须包含以下 native runtime 库：
 
-| 库文件 | 作用 | 下载链接 |
-| --- | --- | --- |
-| `libpbcurlwrapper.so` | KMM Network 调用 libcurl 的封装库 | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAoOl8vBYTAbQAJgZ2AA8) |
-| `libopenssl.so` | HTTPS/SSL/TLS 支持库 | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAohnXGmhhAbQAJgZ2AA8) |
+| 库文件 | 作用 |
+| --- | --- |
+| `libpbcurlwrapper.so` | KMM Network 调用 libcurl 的封装库 |
+| `libopenssl.so` | HTTPS/SSL/TLS 支持库 |
+| `libc++_shared.so` | `libpbcurlwrapper.so` 和 `libopenssl.so` 依赖的 C++ runtime |
 
-把两个文件放到 OHOS entry 模块的 native 库目录：
+推荐通过 Gradle 插件从 Maven 同步这些 `.so`。先在 `settings.gradle.kts` 中给插件解析和依赖解析添加 GitHub Packages 仓库。
+
+```kotlin
+pluginManagement {
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven {
+            url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+        google()
+        mavenCentral()
+    }
+}
+```
+
+在拥有 `ohosApp` 目录的 Gradle 工程中应用插件。
+
+```kotlin
+plugins {
+    id("com.tencent.kuiklybase.network.ohos-runtime") version "0.0.4"
+}
+
+networkOhosRuntime {
+    outputDir.set(layout.projectDirectory.dir("ohosApp/entry/libs/arm64-v8a"))
+}
+```
+
+插件版本会作为默认 runtime artifact 版本，默认解析：
+
+```text
+com.tencent.kuiklybase:network-ohos-runtime:<plugin-version>
+```
+
+同步 native 库：
+
+```bash
+./gradlew copyNetworkOhosRuntimeLibs
+```
+
+最终 OHOS entry 模块应包含：
 
 ```text
 ohosApp/
@@ -95,10 +151,20 @@ ohosApp/
     └── libs/
         └── arm64-v8a/
             ├── libpbcurlwrapper.so
-            └── libopenssl.so
+            ├── libopenssl.so
+            └── libc++_shared.so
 ```
 
-如果 `entry/libs/arm64-v8a/` 不存在，需要手动创建。本仓库 demo 已经在 `NetworkKMM/ohosApp/entry/libs/arm64-v8a/` 内置这两个文件；业务项目接入时仍需要把它们下载或拷贝到自己的 entry 模块。
+如果插件应用在 `ohosApp` 工程目录，默认输出目录是 `entry/libs/arm64-v8a`；如果插件应用在仓库根目录且存在 `ohosApp/entry`，默认输出目录是 `ohosApp/entry/libs/arm64-v8a`。也可以通过 `networkOhosRuntime.outputDir` 显式覆盖。
+
+手动兜底下载：
+
+| 库文件 | 下载链接 |
+| --- | --- |
+| `libpbcurlwrapper.so` | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAoOl8vBYTAbQAJgZ2AA8) |
+| `libopenssl.so` | [下载](https://drive.weixin.qq.com/s?k=AJEAIQdfAAohnXGmhhAbQAJgZ2AA8) |
+
+`libc++_shared.so` 可从本仓库 demo 的 `NetworkKMM/ohosApp/entry/libs/arm64-v8a/` 拷贝。手动方式仍需确保三个文件都在 entry 模块的 `libs/arm64-v8a/` 目录。
 
 ## 4. 链接 Native 库
 
@@ -176,12 +242,11 @@ VBTransportInitHelper.init(config)
 ## 6. 接入检查清单
 
 - [ ] 已添加 `com.tencent.kuiklybase:network:0.0.4`
-- [ ] 已添加腾讯 Maven 仓库
+- [ ] 已添加腾讯 Maven 仓库或 GitHub Packages Maven 仓库
 - [ ] 已声明 `INTERNET`、`GET_NETWORK_INFO`、`GET_WIFI_INFO`
 - [ ] 已添加权限 reason 字符串
-- [ ] 已下载 `libpbcurlwrapper.so`
-- [ ] 已下载 `libopenssl.so`
-- [ ] 两个 `.so` 已放到 `entry/libs/arm64-v8a/`
+- [ ] 已执行 `./gradlew copyNetworkOhosRuntimeLibs`，或手动放置 native runtime 库
+- [ ] `libpbcurlwrapper.so`、`libopenssl.so`、`libc++_shared.so` 已放到 `entry/libs/arm64-v8a/`
 - [ ] 有 native entry target 时，已在 CMake 中添加 imported library
 - [ ] 有 native entry target 时，已链接 `pbcurlwrapper` 和 `openssl`
 - [ ] 已在发起请求前调用 `VBTransportInitHelper.init()`
@@ -190,11 +255,11 @@ VBTransportInitHelper.init(config)
 
 ### 编译时报找不到 `.so`
 
-检查 `entry/libs/arm64-v8a/` 下是否存在 `libpbcurlwrapper.so` 和 `libopenssl.so`，文件名是否完全一致，以及 CMake 中 `IMPORTED_LOCATION` 是否指向 `../../../libs/${OHOS_ARCH}/`。
+检查 `entry/libs/arm64-v8a/` 下是否存在 `libpbcurlwrapper.so`、`libopenssl.so`、`libc++_shared.so`，文件名是否完全一致，以及 CMake 中 `IMPORTED_LOCATION` 是否指向 `../../../libs/${OHOS_ARCH}/`。如果使用插件，先执行 `./gradlew copyNetworkOhosRuntimeLibs`。
 
 ### 运行时 native library not found
 
-确认运行设备是 ARM64，并且 entry target 已链接 `pbcurlwrapper` 和 `openssl`。当前下载库只覆盖 `arm64-v8a`，不支持 x86/x86_64 模拟器。
+确认运行设备是 ARM64，并且 entry target 已链接 `pbcurlwrapper` 和 `openssl`。当前 runtime 库只覆盖 `arm64-v8a`，不支持 x86/x86_64 模拟器。
 
 ### HTTPS 请求失败
 

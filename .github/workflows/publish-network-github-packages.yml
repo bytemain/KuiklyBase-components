@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish Android, iOS, and OHOS publications
+    name: Publish NetworkKMM artifacts
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.2.642
