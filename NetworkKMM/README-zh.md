@@ -41,7 +41,7 @@ repositories {
 }
 
 // 在 build.gradle.kts / build.ohos.gradle.kts 添加依赖
-implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
+implementation("com.tencent.kuiklybase:network:0.1.0-raft.0")
 // 如有疑问，参考各端 demo app 接入 (androidApp/, iosApp/, ohosApp/目录下的示例)
 ```
 
