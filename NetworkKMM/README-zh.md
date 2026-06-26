@@ -13,13 +13,25 @@
 
 #### Kotlin 接入
 ```kotlin
+import java.util.Properties
+
+val githubPackagesProperties = Properties().apply {
+    val propertiesFile = rootProject.file("github-packages.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
 repositories {
     maven {
         name = "bytemainKuiklyBase"
         url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
         credentials {
-            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-            password = findProperty("gpr.key") as String?
+            username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                ?: githubPackagesProperties.getProperty("gpr.user")
+                ?: System.getenv("GITHUB_ACTOR")
+            password = githubPackagesProperties.getProperty("githubPackagesToken")
+                ?: githubPackagesProperties.getProperty("gpr.key")
                 ?: System.getenv("GITHUB_PACKAGES_TOKEN")
                 ?: System.getenv("GITHUB_TOKEN")
         }
@@ -34,7 +46,7 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 ```
 
 #### GitHub Packages
-bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 GitHub Packages。GitHub Packages Maven 即使是 public 包也需要 credentials；本地使用带 `read:packages` 权限的 classic PAT，GitHub Actions 中可以使用 `GITHUB_TOKEN`。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
+bytemain fork 会把 Android、iOS、HarmonyOS 三端 KMP artifacts 发布到 GitHub Packages。GitHub Packages Maven 即使是 public 包也需要 credentials。本地构建时，把 [`docs/github-packages.properties.example`](./docs/github-packages.properties.example) 复制到消费仓库根目录的 `github-packages.properties`，填入带 `read:packages` 权限的 classic PAT；文件不存在时，Gradle 会回退读取 `GITHUB_ACTOR`、`GITHUB_PACKAGES_TOKEN` 或 `GITHUB_TOKEN`。手动发布、CI 发布和消费端仓库配置见 [GitHub Packages 发布文档](./docs/github-packages-publishing.md)。
 
 #### 网络权限声明
 ##### Android

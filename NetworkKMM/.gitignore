@@ -28,6 +28,7 @@ Carthage/Build
 *.iml
 .gradle
 .DS_Store
+/github-packages.properties
 /local.properties
 /build
 /captures

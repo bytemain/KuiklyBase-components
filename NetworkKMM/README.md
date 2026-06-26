@@ -13,13 +13,25 @@ Currently, the HarmonyOS side uses the open-source library **libcurl** as the ne
 
 #### Kotlin Integration
 ```kotlin
+import java.util.Properties
+
+val githubPackagesProperties = Properties().apply {
+    val propertiesFile = rootProject.file("github-packages.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
 repositories {
     maven {
         name = "bytemainKuiklyBase"
         url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
         credentials {
-            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-            password = findProperty("gpr.key") as String?
+            username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                ?: githubPackagesProperties.getProperty("gpr.user")
+                ?: System.getenv("GITHUB_ACTOR")
+            password = githubPackagesProperties.getProperty("githubPackagesToken")
+                ?: githubPackagesProperties.getProperty("gpr.key")
                 ?: System.getenv("GITHUB_PACKAGES_TOKEN")
                 ?: System.getenv("GITHUB_TOKEN")
         }
@@ -34,7 +46,7 @@ implementation("com.tencent.kuiklybase:network:0.0.5-raft.0")
 ```
 
 #### GitHub Packages
-The bytemain fork publishes Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. GitHub Packages Maven requires credentials even for public packages; use a classic PAT with `read:packages` locally, or `GITHUB_TOKEN` in GitHub Actions. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
+The bytemain fork publishes Android, iOS, and HarmonyOS KMP artifacts to GitHub Packages. GitHub Packages Maven requires credentials even for public packages. For local builds, copy [`docs/github-packages.properties.example`](./docs/github-packages.properties.example) to `github-packages.properties` in the consuming repository root and set a classic PAT with `read:packages`. If the file is missing, Gradle falls back to `GITHUB_ACTOR`, `GITHUB_PACKAGES_TOKEN`, or `GITHUB_TOKEN`. See [GitHub Packages Publishing](./docs/github-packages-publishing.md) for manual publish, CI publish, and consumer repository configuration.
 
 #### Network Permission Declaration
 ##### Android

@@ -6,16 +6,28 @@
 
 ## 1. 添加 Kotlin 依赖
 
-在 KMM 共享模块和 OHOS Gradle 配置中添加腾讯 Maven 仓库和 network 依赖，例如 `build.gradle.kts` / `build.ohos.gradle.kts`。
+在 KMM 共享模块和 OHOS Gradle 配置中添加 GitHub Packages Maven 仓库和 network 依赖，例如 `build.gradle.kts` / `build.ohos.gradle.kts`。
 
 ```kotlin
+import java.util.Properties
+
+val githubPackagesProperties = Properties().apply {
+    val propertiesFile = rootProject.file("github-packages.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
 repositories {
     maven {
         name = "bytemainKuiklyBase"
         url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
         credentials {
-            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-            password = findProperty("gpr.key") as String?
+            username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                ?: githubPackagesProperties.getProperty("gpr.user")
+                ?: System.getenv("GITHUB_ACTOR")
+            password = githubPackagesProperties.getProperty("githubPackagesToken")
+                ?: githubPackagesProperties.getProperty("gpr.key")
                 ?: System.getenv("GITHUB_PACKAGES_TOKEN")
                 ?: System.getenv("GITHUB_TOKEN")
         }
@@ -100,13 +112,28 @@ HarmonyOS 接入必须包含以下 native runtime 库：
 推荐通过 Gradle 插件从 Maven 同步这些 `.so`。先在 `settings.gradle.kts` 中给插件解析和依赖解析添加 GitHub Packages 仓库。
 
 ```kotlin
+import java.util.Properties
+
 pluginManagement {
+    val githubPackagesProperties = Properties().apply {
+        val propertiesFile = settingsDir.resolve("github-packages.properties")
+        if (propertiesFile.isFile) {
+            propertiesFile.inputStream().use(::load)
+        }
+    }
+
     repositories {
         maven {
+            name = "bytemainKuiklyBase"
             url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+                username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                    ?: githubPackagesProperties.getProperty("gpr.user")
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = githubPackagesProperties.getProperty("githubPackagesToken")
+                    ?: githubPackagesProperties.getProperty("gpr.key")
+                    ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                    ?: System.getenv("GITHUB_TOKEN")
             }
         }
         gradlePluginPortal()
@@ -114,12 +141,25 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    val githubPackagesProperties = Properties().apply {
+        val propertiesFile = settingsDir.resolve("github-packages.properties")
+        if (propertiesFile.isFile) {
+            propertiesFile.inputStream().use(::load)
+        }
+    }
+
     repositories {
         maven {
+            name = "bytemainKuiklyBase"
             url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+                username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                    ?: githubPackagesProperties.getProperty("gpr.user")
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = githubPackagesProperties.getProperty("githubPackagesToken")
+                    ?: githubPackagesProperties.getProperty("gpr.key")
+                    ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                    ?: System.getenv("GITHUB_TOKEN")
             }
         }
         google()
@@ -251,7 +291,7 @@ VBTransportInitHelper.init(config)
 ## 6. 接入检查清单
 
 - [ ] 已添加 `com.tencent.kuiklybase:network:0.0.5-raft.0`
-- [ ] 已添加 GitHub Packages Maven 仓库和可读 token
+- [ ] 已添加 GitHub Packages Maven 仓库，并配置 `github-packages.properties` 或环境变量 token
 - [ ] 已声明 `INTERNET`、`GET_NETWORK_INFO`、`GET_WIFI_INFO`
 - [ ] 已添加权限 reason 字符串
 - [ ] 已执行 `./gradlew copyNetworkOhosRuntimeLibs`，或手动放置 native runtime 库

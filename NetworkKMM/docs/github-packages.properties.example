@@ -1,0 +1,4 @@
+# Copy this file to github-packages.properties in the consuming repository root.
+# Do not commit the real token file.
+githubPackagesUsername=your-github-user
+githubPackagesToken=ghp_xxx

@@ -49,16 +49,35 @@ HarmonyOS apps still need these native runtime libraries in the app entry module
 
 ## Consume From GitHub Packages
 
-GitHub Packages requires authentication for package reads and writes, including public packages. Add the repository to the consuming Gradle build:
+GitHub Packages requires authentication for package reads and writes, including public packages. For local builds, copy [`github-packages.properties.example`](./github-packages.properties.example) to `github-packages.properties` in the consuming repository root:
+
+```properties
+githubPackagesUsername=your-github-user
+githubPackagesToken=ghp_xxx
+```
+
+Add the repository to the consuming Gradle build. Gradle reads `github-packages.properties` first and falls back to environment variables when the file does not exist:
 
 ```kotlin
+import java.util.Properties
+
+val githubPackagesProperties = Properties().apply {
+    val propertiesFile = rootProject.file("github-packages.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use(::load)
+    }
+}
+
 repositories {
     maven {
-        name = "githubPackages"
+        name = "bytemainKuiklyBase"
         url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
         credentials {
-            username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-            password = findProperty("gpr.key") as String?
+            username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                ?: githubPackagesProperties.getProperty("gpr.user")
+                ?: System.getenv("GITHUB_ACTOR")
+            password = githubPackagesProperties.getProperty("githubPackagesToken")
+                ?: githubPackagesProperties.getProperty("gpr.key")
                 ?: System.getenv("GITHUB_PACKAGES_TOKEN")
                 ?: System.getenv("GITHUB_TOKEN")
         }
@@ -81,13 +100,28 @@ Add the GitHub Packages Maven repository to both plugin resolution and dependenc
 
 ```kotlin
 // settings.gradle.kts
+import java.util.Properties
+
 pluginManagement {
+    val githubPackagesProperties = Properties().apply {
+        val propertiesFile = settingsDir.resolve("github-packages.properties")
+        if (propertiesFile.isFile) {
+            propertiesFile.inputStream().use(::load)
+        }
+    }
+
     repositories {
         maven {
+            name = "bytemainKuiklyBase"
             url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+                username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                    ?: githubPackagesProperties.getProperty("gpr.user")
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = githubPackagesProperties.getProperty("githubPackagesToken")
+                    ?: githubPackagesProperties.getProperty("gpr.key")
+                    ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                    ?: System.getenv("GITHUB_TOKEN")
             }
         }
         gradlePluginPortal()
@@ -95,12 +129,25 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    val githubPackagesProperties = Properties().apply {
+        val propertiesFile = settingsDir.resolve("github-packages.properties")
+        if (propertiesFile.isFile) {
+            propertiesFile.inputStream().use(::load)
+        }
+    }
+
     repositories {
         maven {
+            name = "bytemainKuiklyBase"
             url = uri("https://maven.pkg.github.com/bytemain/KuiklyBase-components")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
+                username = githubPackagesProperties.getProperty("githubPackagesUsername")
+                    ?: githubPackagesProperties.getProperty("gpr.user")
+                    ?: System.getenv("GITHUB_ACTOR")
+                password = githubPackagesProperties.getProperty("githubPackagesToken")
+                    ?: githubPackagesProperties.getProperty("gpr.key")
+                    ?: System.getenv("GITHUB_PACKAGES_TOKEN")
+                    ?: System.getenv("GITHUB_TOKEN")
             }
         }
         google()
