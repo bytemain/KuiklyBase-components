@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       publish_resource_compose:
-        description: "Also publish resource-compose artifacts"
+        description: "Also publish standard Compose resource-compose artifacts"
         required: false
         type: boolean
         default: false

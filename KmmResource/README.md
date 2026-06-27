@@ -17,7 +17,7 @@ The KMM resource manager fundamentally exposes platform-specific resource identi
 |-----------|--------|------|
 | com.tencent.kuiklybase.resource.generator | 0.1.0-raft.1 | 0.1.0-raft.1 |
 | resource-core | 0.1.0-raft.1 | 0.1.0-raft.1 |
-| resource-compose | Gradle plugin aligned to Compose 1.7.3; runtime remains 1.6.1-KBA-001 for OHOS | Gradle plugin aligned to Compose 1.7.3; runtime remains 1.6.1-KBA-001 for OHOS |
+| resource-compose | Standard `androidx.compose` / JetBrains Compose wrapper; opt-in only | Standard `androidx.compose` / JetBrains Compose wrapper; opt-in only |
 | @kuiklybase/resource_compose | 0.0.1 | 0.0.1 |
 
 ## Gradle Integration
@@ -108,15 +108,38 @@ multiplatformResources {
 | `multiplatformResourcesVisibility` | Visibility modifier for generated classes |
 
 `resource-compose` is not required for plain KMP MR generation. Consumers that
-already provide their own Compose wrappers should depend only on
-`resource-core`. The bytemain source now uses Compose Gradle plugin 1.7.3 for
-future use, but `resource-compose` still keeps
-`org.jetbrains.compose.runtime/foundation` on `1.6.1-KBA-001` because the plain
-JetBrains `1.7.3` artifacts do not publish an `ohos_arm64` native variant. The
-default GitHub Packages workflow still publishes only `resource-core` and the
-generator plugin. Set `KMMRESOURCE_INCLUDE_COMPOSE=true` and
-`-PkmmResourcePublishCompose=true` only when intentionally publishing Compose
-wrapper artifacts for a new version.
+already provide their own UI wrappers should depend only on `resource-core`.
+The current `resource-compose` module is a standard Compose wrapper: its source
+imports `androidx.compose.*` APIs and its OHOS path still uses
+`org.jetbrains.compose.runtime/foundation` `1.6.1-KBA-001`, because plain
+JetBrains `1.7.3` artifacts do not publish an `ohos_arm64` native variant.
+The default GitHub Packages workflow still publishes only `resource-core` and
+the generator plugin. Set `KMMRESOURCE_INCLUDE_COMPOSE=true` and
+`-PkmmResourcePublishCompose=true` only when intentionally publishing these
+standard Compose wrapper artifacts for a new version.
+
+### Kuikly Compose compatibility
+
+Slock's shared UI is aligned to the Kuikly framework, not to the standard
+`androidx.compose` wrapper above. The current Slock Kuikly line is:
+
+| Layer | Version / coordinate |
+|-------|----------------------|
+| Slock Kuikly fork source | `third_party/kuikly-ui` at `2.21.0-44-gda74e0a8` |
+| Kuikly framework base | `2.21.0` |
+| Android Maven artifacts | `com.tencent.kuikly-open:*:2.21.0-2.1.21` |
+| OHOS Maven/KLIB artifacts | `com.tencent.kuikly-open:*:2.21.0-2.0.21-ohos` |
+| OHOS Kotlin / Compose compiler plugin | `2.0.21-KBA-010` |
+| Kuikly Compose runtime inside the fork | `com.tencent.kuikly-open.compose.runtime:runtime:1.7.3-kuikly1` |
+| OHOS render package in Slock | local `@kuikly-open/render` HAR from the matching staging line |
+
+Kuikly Compose exposes `com.tencent.kuikly.compose.*` types, while
+`resource-compose` exposes `androidx.compose.*` types. Do not treat publishing
+the current `resource-compose` module as Kuikly framework alignment. A
+Kuikly-aligned wrapper should be introduced as a separate source/API surface, or
+the existing wrapper must be intentionally migrated from `androidx.compose.*` to
+`com.tencent.kuikly.compose.*` and validated against both
+`2.21.0-2.1.21` and `2.21.0-2.0.21-ohos`.
 
 ### HarmonyOS Configuration
 
