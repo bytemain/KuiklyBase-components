@@ -75,12 +75,15 @@ kotlin {
 
         val androidMain by getting {
             dependencies {
+                api(libs.kuikly.compose)
                 implementation(libs.appCompatResources)
             }
         }
 
         val ohosArm64Main by getting {
-            dependencies {}
+            dependencies {
+                api(libs.kuikly.compose.ohos)
+            }
         }
 
     }
@@ -106,4 +109,3 @@ knoi {
 }
 
 apply(from = file(rootProject.file("gradle/publishing.gradle")))
-

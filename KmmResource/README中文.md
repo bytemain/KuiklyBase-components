@@ -116,14 +116,14 @@ OHOS 路径里的 `org.jetbrains.compose.runtime/foundation` 仍保留在 `1.6.1
 
 ### Kuikly Compose 兼容性
 
-KuiklyBase 的公网产物应该对齐公网 Kuikly framework artifact 线。当前 Kuikly `2.21.0` 版本线里，Android
+KuiklyBase 的公网产物应该对齐公网 Kuikly framework artifact 线。当前公网 Kuikly `2.4.2` 版本线里，Android
 和 OHOS 使用不同 Kotlin suffix：
 
 | 层级 | 版本 / 坐标 |
 |------|-------------|
-| Kuikly framework base | `2.21.0` |
-| Android Maven artifacts | `com.tencent.kuikly-open:*:2.21.0-2.1.21` |
-| OHOS Maven/KLIB artifacts | `com.tencent.kuikly-open:*:2.21.0-2.0.21-ohos` |
+| Kuikly framework base | `2.4.2` |
+| Android Maven artifacts | `com.tencent.kuikly-open:*:2.4.2-2.0.21` |
+| OHOS Maven/KLIB artifacts | `com.tencent.kuikly-open:*:2.4.2-2.0.21-ohos` |
 | OHOS build plugin line | `2.0.21-KBA-010` |
 
 Kuikly Compose 暴露的是 `com.tencent.kuikly.compose.*` 类型，而当前 `resource-compose` 暴露的是
