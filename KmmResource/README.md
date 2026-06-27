@@ -120,18 +120,16 @@ standard Compose wrapper artifacts for a new version.
 
 ### Kuikly Compose compatibility
 
-Slock's shared UI is aligned to the Kuikly framework, not to the standard
-`androidx.compose` wrapper above. The current Slock Kuikly line is:
+KuiklyBase public artifacts should align to the public Kuikly framework
+artifact line. For the current Kuikly `2.21.0` line, Android and OHOS use
+different Kotlin suffixes:
 
 | Layer | Version / coordinate |
 |-------|----------------------|
-| Slock Kuikly fork source | `third_party/kuikly-ui` at `2.21.0-44-gda74e0a8` |
 | Kuikly framework base | `2.21.0` |
 | Android Maven artifacts | `com.tencent.kuikly-open:*:2.21.0-2.1.21` |
 | OHOS Maven/KLIB artifacts | `com.tencent.kuikly-open:*:2.21.0-2.0.21-ohos` |
-| OHOS Kotlin / Compose compiler plugin | `2.0.21-KBA-010` |
-| Kuikly Compose runtime inside the fork | `com.tencent.kuikly-open.compose.runtime:runtime:1.7.3-kuikly1` |
-| OHOS render package in Slock | local `@kuikly-open/render` HAR from the matching staging line |
+| OHOS build plugin line | `2.0.21-KBA-010` |
 
 Kuikly Compose exposes `com.tencent.kuikly.compose.*` types, while
 `resource-compose` exposes `androidx.compose.*` types. Do not treat publishing
