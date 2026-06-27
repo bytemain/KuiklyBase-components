@@ -28,6 +28,16 @@ default_publish_tasks=(
   ":resource-core:publishOhosArm64PublicationToGithubPackagesRepository"
   ":resource-core:publishKotlinMultiplatformPublicationToGithubPackagesRepository"
 )
+if [[ "${KMMRESOURCE_INCLUDE_COMPOSE:-false}" == "true" ]]; then
+  default_publish_tasks+=(
+    ":resource-compose:publishAndroidPublicationToGithubPackagesRepository"
+    ":resource-compose:publishIosX64PublicationToGithubPackagesRepository"
+    ":resource-compose:publishIosArm64PublicationToGithubPackagesRepository"
+    ":resource-compose:publishIosSimulatorArm64PublicationToGithubPackagesRepository"
+    ":resource-compose:publishOhosArm64PublicationToGithubPackagesRepository"
+    ":resource-compose:publishKotlinMultiplatformPublicationToGithubPackagesRepository"
+  )
+fi
 DEFAULT_KMMRESOURCE_PUBLISH_TASKS="${default_publish_tasks[*]}"
 KMMRESOURCE_PUBLISH_TASKS="${KMMRESOURCE_PUBLISH_TASKS:-$DEFAULT_KMMRESOURCE_PUBLISH_TASKS}"
 IFS=' ' read -r -a publish_tasks <<< "$KMMRESOURCE_PUBLISH_TASKS"
@@ -41,6 +51,10 @@ gradle_args=(
   "-PgithubPackagesUsername=$GITHUB_PACKAGES_USERNAME"
   "-PgithubPackagesToken=$GITHUB_PACKAGES_TOKEN"
 )
+
+if [[ "${KMMRESOURCE_INCLUDE_COMPOSE:-false}" == "true" ]]; then
+  gradle_args+=("-PkmmResourcePublishCompose=true")
+fi
 
 if [[ -n "${MAVEN_VERSION:-}" ]]; then
   gradle_args+=("-Pversion=$MAVEN_VERSION" "-PmavenVersion=$MAVEN_VERSION")
@@ -65,7 +79,7 @@ task_exists() {
   local task_file="$task_cache_dir/${cache_name:-root}.tasks"
 
   if [[ ! -f "$task_file" ]]; then
-    if ! ./gradlew --no-daemon --console=plain -PkmmResourcePublishOnly=true "$project_path:tasks" --all > "$task_file" 2>&1; then
+    if ! ./gradlew "${gradle_args[@]}" "$project_path:tasks" --all > "$task_file" 2>&1; then
       cat "$task_file" >&2
       return 2
     fi

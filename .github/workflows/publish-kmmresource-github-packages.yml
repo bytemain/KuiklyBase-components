@@ -7,6 +7,11 @@ on:
         description: "Override Maven version, for example 0.1.0-raft.0"
         required: false
         type: string
+      publish_resource_compose:
+        description: "Also publish resource-compose artifacts"
+        required: false
+        type: boolean
+        default: false
       android_ohos_publish_tasks:
         description: "Optional Android/OHOS publish task override"
         required: false
@@ -95,6 +100,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
           REQUESTED_TASKS: ${{ github.event.inputs.android_ohos_publish_tasks }}
         run: |
           set -euo pipefail
@@ -112,6 +118,9 @@ jobs:
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then
             echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-generator:publishAllPublicationsToGithubPackagesRepository :resource-core:publishAndroidPublicationToGithubPackagesRepository :resource-core:publishOhosArm64PublicationToGithubPackagesRepository :resource-compose:publishAndroidPublicationToGithubPackagesRepository :resource-compose:publishOhosArm64PublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
           fi
 
       - name: Check existing KmmResource version
@@ -192,6 +201,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
           REQUESTED_TASKS: ${{ github.event.inputs.ios_publish_tasks }}
         run: |
           set -euo pipefail
@@ -209,6 +219,9 @@ jobs:
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then
             echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-core:publishIosX64PublicationToGithubPackagesRepository :resource-core:publishIosArm64PublicationToGithubPackagesRepository :resource-core:publishIosSimulatorArm64PublicationToGithubPackagesRepository :resource-compose:publishIosX64PublicationToGithubPackagesRepository :resource-compose:publishIosArm64PublicationToGithubPackagesRepository :resource-compose:publishIosSimulatorArm64PublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
           fi
 
       - name: Publish KmmResource iOS publications
@@ -266,6 +279,7 @@ jobs:
         shell: bash
         env:
           REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
           REQUESTED_TASKS: ${{ github.event.inputs.metadata_publish_tasks }}
         run: |
           set -euo pipefail
@@ -283,6 +297,9 @@ jobs:
 
           if [[ -n "${REQUESTED_TASKS:-}" ]]; then
             echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-core:publishKotlinMultiplatformPublicationToGithubPackagesRepository :resource-compose:publishKotlinMultiplatformPublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
           fi
 
       - name: Publish KmmResource metadata publication

@@ -17,7 +17,7 @@ The KMM resource manager fundamentally exposes platform-specific resource identi
 |-----------|--------|------|
 | com.tencent.kuiklybase.resource.generator | 0.1.0-raft.1 | 0.1.0-raft.1 |
 | resource-core | 0.1.0-raft.1 | 0.1.0-raft.1 |
-| resource-compose | 0.0.1 | 0.0.1 |
+| resource-compose | Gradle plugin aligned to Compose 1.7.3; runtime remains 1.6.1-KBA-001 for OHOS | Gradle plugin aligned to Compose 1.7.3; runtime remains 1.6.1-KBA-001 for OHOS |
 | @kuiklybase/resource_compose | 0.0.1 | 0.0.1 |
 
 ## Gradle Integration
@@ -109,8 +109,14 @@ multiplatformResources {
 
 `resource-compose` is not required for plain KMP MR generation. Consumers that
 already provide their own Compose wrappers should depend only on
-`resource-core`. Rebuild `resource-compose` against the target Compose runtime
-before using it in a Compose/KMP app.
+`resource-core`. The bytemain source now uses Compose Gradle plugin 1.7.3 for
+future use, but `resource-compose` still keeps
+`org.jetbrains.compose.runtime/foundation` on `1.6.1-KBA-001` because the plain
+JetBrains `1.7.3` artifacts do not publish an `ohos_arm64` native variant. The
+default GitHub Packages workflow still publishes only `resource-core` and the
+generator plugin. Set `KMMRESOURCE_INCLUDE_COMPOSE=true` and
+`-PkmmResourcePublishCompose=true` only when intentionally publishing Compose
+wrapper artifacts for a new version.
 
 ### HarmonyOS Configuration
 

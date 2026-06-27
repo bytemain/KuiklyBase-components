@@ -14,8 +14,8 @@ kotlinxSerializationVersion = "1.5.0"
 kotlinxCoroutinesVersion = "1.6.4"
 kotlinVersion="1.9.20"
 
-compose-ohos = "1.6.1-KBA-001"
-compose-common = "1.6.1"
+compose-ohos = "1.7.3"
+compose-common = "1.7.3"
 
 overrideComposeVersion = "1.6.1-KBA-001"
 

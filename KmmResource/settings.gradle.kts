@@ -36,8 +36,16 @@ val publishOnly = providers.gradleProperty("kmmResourcePublishOnly")
     .orElse(false)
     .get()
 
-if (!publishOnly) {
+val publishCompose = providers.gradleProperty("kmmResourcePublishCompose")
+    .map(String::toBoolean)
+    .orElse(false)
+    .get()
+
+if (publishCompose || !publishOnly) {
     include(":resource-compose")
+}
+
+if (!publishOnly) {
     include(":sample")
     include(":androidApp")
     include(":sample_noohos")
