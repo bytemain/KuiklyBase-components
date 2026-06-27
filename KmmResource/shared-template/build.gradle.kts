@@ -95,4 +95,5 @@ android {
 multiplatformResources {
     multiplatformResourcesPackage = "com.tencent.tmm.kmmresource.sample"
     multiplatformResourcesPrefix = "sample_"
+    commonGeneratedDir = "build/generated/tmm-res-common"
 }

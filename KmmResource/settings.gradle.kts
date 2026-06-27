@@ -28,12 +28,28 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "KmmResource"
-include(":resource-compose")
 include(":resource-core")
 include(":resource-generator")
-include(":sample")
-include(":androidApp")
-include(":sample_noohos")
-//include(":sample_noohos_sub")
-include(":shared-template")
-//includeBuild("resource-generator")
+
+val publishOnly = providers.gradleProperty("kmmResourcePublishOnly")
+    .map(String::toBoolean)
+    .orElse(false)
+    .get()
+
+val publishCompose = providers.gradleProperty("kmmResourcePublishCompose")
+    .map(String::toBoolean)
+    .orElse(false)
+    .get()
+
+if (publishCompose || !publishOnly) {
+    include(":resource-compose")
+}
+
+if (!publishOnly) {
+    include(":sample")
+    include(":androidApp")
+    include(":sample_noohos")
+    //include(":sample_noohos_sub")
+    include(":shared-template")
+    //includeBuild("resource-generator")
+}

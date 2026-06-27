@@ -1,5 +1,5 @@
 [versions]
-agp = "8.2.0"
+agp = "8.13.2"
 kotlin = "1.9.20"
 compose = "1.5.4"
 compose-compiler = "1.5.4"
@@ -14,10 +14,15 @@ kotlinxSerializationVersion = "1.5.0"
 kotlinxCoroutinesVersion = "1.6.4"
 kotlinVersion="1.9.20"
 
-compose-ohos = "1.6.1-KBA-001"
-compose-common = "1.6.1"
+compose-ohos = "1.7.3"
+compose-common = "1.7.3"
 
 overrideComposeVersion = "1.6.1-KBA-001"
+kuikly = "2.4.2"
+kuiklyKotlin = "2.0.21"
+kuiklyAndroid = "2.4.2-2.0.21"
+kuiklyOhos = "2.4.2-2.0.21-ohos"
+kuiklyOhosBuildPlugin = "2.0.21-KBA-010"
 
 tkmm = "1.9.23-dev-5"
 kotlinPoetVersion = "1.13.1"
@@ -49,6 +54,8 @@ override-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", v
 override-compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "overrideComposeVersion" }
 override-compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "overrideComposeVersion" }
 override-compose-material = { module = "org.jetbrains.compose.material:material", version.ref = "overrideComposeVersion" }
+kuikly-compose = { module = "com.tencent.kuikly-open:compose", version.ref = "kuiklyAndroid" }
+kuikly-compose-ohos = { module = "com.tencent.kuikly-open:compose", version.ref = "kuiklyOhos" }
 
 
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose" }
@@ -84,4 +91,4 @@ kotlinCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = 
 composeOhos = { id = "org.jetbrains.compose", version.ref = "compose-ohos" }
 jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 composeGradle = { id = "com.tencent.tmm.kmmgradle", version.ref = "composeGradleVersion" }
-composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version = "2.0.21-KBA-003" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kuiklyOhosBuildPlugin" }

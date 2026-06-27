@@ -29,7 +29,10 @@ publishing {
     }
 
     tasks.withType(AbstractPublishToMaven).configureEach {
-        dependsOn(tasks.withType(Sign))
+        def signTasks = tasks.withType(Sign)
+        if (!signTasks.isEmpty()) {
+            dependsOn(signTasks)
+        }
     }
 
 }

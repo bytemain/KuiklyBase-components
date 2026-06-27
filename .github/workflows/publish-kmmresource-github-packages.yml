@@ -1,0 +1,315 @@
+name: Publish KmmResource to GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Override Maven version, for example 0.1.0-raft.0"
+        required: false
+        type: string
+      publish_resource_compose:
+        description: "Also publish standard Compose resource-compose artifacts"
+        required: false
+        type: boolean
+        default: false
+      android_ohos_publish_tasks:
+        description: "Optional Android/OHOS publish task override"
+        required: false
+        type: string
+      ios_publish_tasks:
+        description: "Optional iOS publish task override"
+        required: false
+        type: string
+      metadata_publish_tasks:
+        description: "Optional KMP metadata publish task override"
+        required: false
+        type: string
+  push:
+    tags:
+      - "kmmresource-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-android-ohos-plugin:
+    name: Publish Android, OHOS, and generator plugin
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/bytemain/harmony-next-pipeline-docker/harmonyos-ci-image:v6.1.1.280
+    env:
+      ANDROID_HOME: /tmp/android-sdk
+      ANDROID_SDK_ROOT: /tmp/android-sdk
+      KMMRESOURCE_REQUIRE_TASKS: "true"
+      KMMRESOURCE_PUBLISH_TASKS: >-
+        :resource-generator:publishAllPublicationsToGithubPackagesRepository
+        :resource-core:publishAndroidPublicationToGithubPackagesRepository
+        :resource-core:publishOhosArm64PublicationToGithubPackagesRepository
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends curl unzip
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/android-commandline-tools.zip
+          unzip -q /tmp/android-commandline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve HarmonyOS SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ohos_sdk_home="${OHOS_SDK_HOME:-${OHOS_BASE_SDK_HOME:-/opt/harmonyos-tools/command-line-tools/sdk/default/openharmony}}"
+          if [[ -z "$ohos_sdk_home" ]]; then
+            echo "OHOS_SDK_HOME or OHOS_BASE_SDK_HOME is required." >&2
+            exit 1
+          fi
+          if [[ ! -d "$ohos_sdk_home/native/sysroot" ]]; then
+            echo "HarmonyOS SDK sysroot not found at $ohos_sdk_home/native/sysroot" >&2
+            exit 1
+          fi
+          ohos_sdk_home="$(cd "$ohos_sdk_home" && pwd)"
+          deveco_sdk_home="${DEVECO_SDK_HOME:-$(cd "$ohos_sdk_home/../.." && pwd)}"
+          deveco_studio_home="${DEVECO_STUDIO_HOME:-$(cd "$deveco_sdk_home/.." && pwd)}"
+
+          echo "OHOS_SDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_BASE_SDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_NDK_HOME=$ohos_sdk_home" >> "$GITHUB_ENV"
+          echo "OHOS_LLVM_HOME=$ohos_sdk_home/native/llvm" >> "$GITHUB_ENV"
+          echo "DEVECO_SDK_HOME=$deveco_sdk_home" >> "$GITHUB_ENV"
+          echo "DEVECO_STUDIO_HOME=$deveco_studio_home" >> "$GITHUB_ENV"
+          echo "$ohos_sdk_home/toolchains" >> "$GITHUB_PATH"
+          echo "$ohos_sdk_home/native/llvm/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
+          REQUESTED_TASKS: ${{ github.event.inputs.android_ohos_publish_tasks }}
+        run: |
+          set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' KmmResource/gradle.properties | tail -n 1)"
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == kmmresource-v* ]]; then
+            tag_version="${GITHUB_REF_NAME#kmmresource-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match KmmResource mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-generator:publishAllPublicationsToGithubPackagesRepository :resource-core:publishAndroidPublicationToGithubPackagesRepository :resource-core:publishOhosArm64PublicationToGithubPackagesRepository :resource-compose:publishAndroidPublicationToGithubPackagesRepository :resource-compose:publishOhosArm64PublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check existing KmmResource version
+        shell: bash
+        env:
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MAVEN_VERSION:-}" ]]; then
+            exit 0
+          fi
+          metadata_url="https://maven.pkg.github.com/${GITHUB_REPOSITORY}/com/tencent/kuiklybase/resource-core/maven-metadata.xml"
+          metadata_file="$(mktemp)"
+          if curl -fsSL -u "$GITHUB_PACKAGES_USERNAME:$GITHUB_PACKAGES_TOKEN" "$metadata_url" -o "$metadata_file" \
+            && grep -F "<version>$MAVEN_VERSION</version>" "$metadata_file" >/dev/null; then
+            echo "KmmResource version $MAVEN_VERSION already exists; skipping publish."
+            echo "KMMRESOURCE_SKIP_PUBLISH=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Skip existing KmmResource version
+        if: env.KMMRESOURCE_SKIP_PUBLISH == 'true'
+        shell: bash
+        run: echo "KmmResource version $MAVEN_VERSION already exists in GitHub Packages."
+
+      - name: Publish KmmResource Android/OHOS/plugin publications
+        if: env.KMMRESOURCE_SKIP_PUBLISH != 'true'
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd KmmResource
+          ./scripts/publish-github-packages.sh
+
+  publish-ios:
+    name: Publish iOS
+    runs-on: macos-latest
+    env:
+      ANDROID_HOME: /tmp/android-sdk
+      ANDROID_SDK_ROOT: /tmp/android-sdk
+      KMMRESOURCE_REQUIRE_TASKS: "true"
+      KMMRESOURCE_PUBLISH_TASKS: >-
+        :resource-core:publishIosX64PublicationToGithubPackagesRepository
+        :resource-core:publishIosArm64PublicationToGithubPackagesRepository
+        :resource-core:publishIosSimulatorArm64PublicationToGithubPackagesRepository
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o /tmp/android-commandline-tools.zip
+          unzip -q /tmp/android-commandline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
+          REQUESTED_TASKS: ${{ github.event.inputs.ios_publish_tasks }}
+        run: |
+          set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' KmmResource/gradle.properties | tail -n 1)"
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == kmmresource-v* ]]; then
+            tag_version="${GITHUB_REF_NAME#kmmresource-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match KmmResource mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-core:publishIosX64PublicationToGithubPackagesRepository :resource-core:publishIosArm64PublicationToGithubPackagesRepository :resource-core:publishIosSimulatorArm64PublicationToGithubPackagesRepository :resource-compose:publishIosX64PublicationToGithubPackagesRepository :resource-compose:publishIosArm64PublicationToGithubPackagesRepository :resource-compose:publishIosSimulatorArm64PublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish KmmResource iOS publications
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd KmmResource
+          ./scripts/publish-github-packages.sh
+
+  publish-kmp-metadata:
+    name: Publish KMP metadata
+    needs:
+      - publish-android-ohos-plugin
+      - publish-ios
+    runs-on: macos-latest
+    env:
+      ANDROID_HOME: /tmp/android-sdk
+      ANDROID_SDK_ROOT: /tmp/android-sdk
+      KMMRESOURCE_REQUIRE_TASKS: "true"
+      KMMRESOURCE_PUBLISH_TASKS: >-
+        :resource-core:publishKotlinMultiplatformPublicationToGithubPackagesRepository
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o /tmp/android-commandline-tools.zip
+          unzip -q /tmp/android-commandline-tools.zip -d "$ANDROID_SDK_ROOT/cmdline-tools"
+          mv "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Resolve publish inputs
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMPOSE: ${{ github.event.inputs.publish_resource_compose }}
+          REQUESTED_TASKS: ${{ github.event.inputs.metadata_publish_tasks }}
+        run: |
+          set -euo pipefail
+          project_version="$(sed -n 's/^mavenVersion=//p' KmmResource/gradle.properties | tail -n 1)"
+          if [[ -n "${REQUESTED_VERSION:-}" ]]; then
+            echo "MAVEN_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == kmmresource-v* ]]; then
+            tag_version="${GITHUB_REF_NAME#kmmresource-v}"
+            if [[ "$project_version" != "$tag_version" ]]; then
+              echo "Tag version $tag_version does not match KmmResource mavenVersion $project_version." >&2
+              exit 1
+            fi
+            echo "MAVEN_VERSION=$tag_version" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -n "${REQUESTED_TASKS:-}" ]]; then
+            echo "KMMRESOURCE_PUBLISH_TASKS=$REQUESTED_TASKS" >> "$GITHUB_ENV"
+          elif [[ "${REQUESTED_COMPOSE:-false}" == "true" ]]; then
+            echo "KMMRESOURCE_INCLUDE_COMPOSE=true" >> "$GITHUB_ENV"
+            echo "KMMRESOURCE_PUBLISH_TASKS=:resource-core:publishKotlinMultiplatformPublicationToGithubPackagesRepository :resource-compose:publishKotlinMultiplatformPublicationToGithubPackagesRepository" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish KmmResource metadata publication
+        shell: bash
+        env:
+          GITHUB_PACKAGES_OWNER: ${{ github.repository_owner }}
+          GITHUB_PACKAGES_REPOSITORY: ${{ github.event.repository.name }}
+          GITHUB_PACKAGES_USERNAME: ${{ github.actor }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd KmmResource
+          ./scripts/publish-github-packages.sh

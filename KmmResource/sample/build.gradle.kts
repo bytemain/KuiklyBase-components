@@ -68,6 +68,7 @@ knoi {
 multiplatformResources {
     multiplatformResourcesPackage = "com.tencent.tmm.knoi"
     multiplatformResourcesPrefix = "sample_"
+    commonGeneratedDir = "build/generated/tmm-res-common"
 }
 
 android {

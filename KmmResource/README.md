@@ -15,19 +15,64 @@ The KMM resource manager fundamentally exposes platform-specific resource identi
 
 | Component | Stable | Beta |
 |-----------|--------|------|
-| com.tencent.kuiklybase.resource.generator | 0.0.1 | 0.0.1 |
-| resource-core | 0.0.1 | 0.0.1 |
-| resource-compose | 0.0.1 | 0.0.1 |
+| com.tencent.kuiklybase.resource.generator | 0.1.0-raft.1 | 0.1.0-raft.1 |
+| resource-core | 0.1.0-raft.1 | 0.1.0-raft.1 |
+| resource-compose | Standard `androidx.compose` / JetBrains Compose wrapper; opt-in only | Standard `androidx.compose` / JetBrains Compose wrapper; opt-in only |
 | @kuiklybase/resource_compose | 0.0.1 | 0.0.1 |
 
 ## Gradle Integration
+
+### GitHub Packages
+
+The bytemain fork publishes `resource-core` and the
+`com.tencent.kuiklybase.resource.generator` Gradle plugin to GitHub Packages.
+GitHub Packages Maven requires credentials even for public packages:
+
+```kotlin
+pluginManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/bytemain/KuiklyBase-components") {
+            credentials {
+                username = providers.gradleProperty("githubPackagesUsername")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("githubPackagesToken")
+                    .orElse(providers.environmentVariable("GITHUB_PACKAGES_TOKEN"))
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
+            }
+        }
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/bytemain/KuiklyBase-components") {
+            credentials {
+                username = providers.gradleProperty("githubPackagesUsername")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("githubPackagesToken")
+                    .orElse(providers.environmentVariable("GITHUB_PACKAGES_TOKEN"))
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
+            }
+        }
+        google()
+        mavenCentral()
+    }
+}
+```
 
 ### KMM Project Setup
 
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.tencent.kuiklybase.resource.generator").version("x.x.x-version").apply(false)
+    id("com.tencent.kuiklybase.resource.generator").version("0.1.0-raft.1").apply(false)
 }
 ```
 
@@ -38,8 +83,7 @@ plugins {
 }
 
 commonMain.dependencies {
-    implementation("com.tencent.kuiklybase:resource-core:x.x.x-version")
-    implementation("com.tencent.kuiklybase:resource-compose:x.x.x-version")
+    implementation("com.tencent.kuiklybase:resource-core:0.1.0-raft.1")
 }
 
 multiplatformResources {
@@ -48,6 +92,7 @@ multiplatformResources {
     multiplatformResourcesClassName = "MR"              // Optional (default: MR)
     iosBaseLocalizationRegion = "en"                    // Optional (default: "en") 
     multiplatformResourcesSourceSet = "commonMain"      // Optional (default: "commonMain")
+    commonGeneratedDir = "build/generated/tmm-res-common" // Optional stable common MR root
     multiplatformResourcesVisibility = MRVisibility.Internal // Optional
 }
 ```
@@ -59,7 +104,40 @@ multiplatformResources {
 | `multiplatformResourcesClassName` | Generated class name (default: `MR`) |
 | `iosBaseLocalizationRegion` | Base localization region for iOS bundles |
 | `multiplatformResourcesSourceSet` | Target source set for resource processing |
+| `commonGeneratedDir` | Optional stable generated root for common MR sources. When set to `build/generated/tmm-res-common`, the plugin registers `build/generated/tmm-res-common/commonMain/src` in `commonMain` instead of the volatile default `build/generated/tmm-res/commonMain/src`. Platform generated outputs continue to use `build/generated/tmm-res`. |
 | `multiplatformResourcesVisibility` | Visibility modifier for generated classes |
+
+`resource-compose` is not required for plain KMP MR generation. Consumers that
+already provide their own UI wrappers should depend only on `resource-core`.
+The current `resource-compose` module is a standard Compose wrapper: its source
+imports `androidx.compose.*` APIs and its OHOS path still uses
+`org.jetbrains.compose.runtime/foundation` `1.6.1-KBA-001`, because plain
+JetBrains `1.7.3` artifacts do not publish an `ohos_arm64` native variant.
+The default GitHub Packages workflow still publishes only `resource-core` and
+the generator plugin. Set `KMMRESOURCE_INCLUDE_COMPOSE=true` and
+`-PkmmResourcePublishCompose=true` only when intentionally publishing these
+standard Compose wrapper artifacts for a new version.
+
+### Kuikly Compose compatibility
+
+KuiklyBase public artifacts should align to the public Kuikly framework
+artifact line. For the current public Kuikly `2.4.2` line, Android and OHOS use
+different Kotlin suffixes:
+
+| Layer | Version / coordinate |
+|-------|----------------------|
+| Kuikly framework base | `2.4.2` |
+| Android Maven artifacts | `com.tencent.kuikly-open:*:2.4.2-2.0.21` |
+| OHOS Maven/KLIB artifacts | `com.tencent.kuikly-open:*:2.4.2-2.0.21-ohos` |
+| OHOS build plugin line | `2.0.21-KBA-010` |
+
+Kuikly Compose exposes `com.tencent.kuikly.compose.*` types, while
+`resource-compose` exposes `androidx.compose.*` types. Do not treat publishing
+the current `resource-compose` module as Kuikly framework alignment. A
+Kuikly-aligned wrapper should be introduced as a separate source/API surface, or
+the existing wrapper must be intentionally migrated from `androidx.compose.*` to
+`com.tencent.kuikly.compose.*` and validated against both
+`2.21.0-2.1.21` and `2.21.0-2.0.21-ohos`.
 
 ### HarmonyOS Configuration
 

@@ -6,6 +6,7 @@ import org.gradle.api.provider.*
 import org.gradle.api.publish.maven.*
 import org.gradle.plugins.signing.*
 import java.net.*
+import java.util.Properties
 
 infix fun <T> Property<T>.by(value: T) {
     set(value)
@@ -14,7 +15,7 @@ infix fun <T> Property<T>.by(value: T) {
 fun MavenPom.configureMavenCentralMetadata(project: Project) {
     name by project.name
     description by "Kotlin Multiplatform Mobile Resource"
-    url by "https://github.com/Tencent-TDS/KuiklyBase-components"
+    url by "https://github.com/bytemain/KuiklyBase-components"
 
     licenses {
         license {
@@ -26,15 +27,15 @@ fun MavenPom.configureMavenCentralMetadata(project: Project) {
 
     developers {
         developer {
-            id by "Tencent-TDS"
-            name by "Tencent-TDS"
-            organization by "Tencent-TDS"
-            organizationUrl by "https://framework.tds.qq.com/"
+            id by "bytemain"
+            name by "bytemain"
+            organization by "bytemain"
+            organizationUrl by "https://github.com/bytemain"
         }
     }
 
     scm {
-        url by "https://github.com/Tencent-TDS/KuiklyBase-components"
+        url by "https://github.com/bytemain/KuiklyBase-components"
     }
 }
 
@@ -49,23 +50,55 @@ fun configureMavenPublication(rh: RepositoryHandler, project: Project) {
             password = project.getSensitiveProperty("libs.sonatype.password")
         }
     }
+    rh.maven {
+        val githubRepositoryEnv = System.getenv("GITHUB_REPOSITORY")
+        val owner = project.getPublishProperty("githubPackagesOwner", "GITHUB_PACKAGES_OWNER")
+            ?: githubRepositoryEnv?.substringBefore("/")
+            ?: "bytemain"
+        val repository = project.getPublishProperty("githubPackagesRepository", "GITHUB_PACKAGES_REPOSITORY")
+            ?: githubRepositoryEnv?.substringAfter("/")
+            ?: "KuiklyBase-components"
+        name = "githubPackages"
+        url = URI("https://maven.pkg.github.com/$owner/$repository")
+        credentials {
+            username = project.getPublishProperty("githubPackagesUsername", "GITHUB_PACKAGES_USERNAME")
+                ?: project.getPublishProperty("gpr.user", "GITHUB_ACTOR")
+                ?: ""
+            password = project.getPublishProperty("githubPackagesToken", "GITHUB_PACKAGES_TOKEN")
+                ?: project.getPublishProperty("gpr.key", "GITHUB_TOKEN")
+                ?: ""
+        }
+    }
 }
 
 fun signPublicationIfKeyPresent(project: Project, publication: MavenPublication) {
+    val hasSigningConfig =
+        project.getSensitiveProperty("signing.keyId").isNullOrBlank().not() ||
+            project.getSensitiveProperty("signing.key").isNullOrBlank().not() ||
+            System.getenv("ORG_GRADLE_PROJECT_signingKey").isNullOrBlank().not()
+    if (!hasSigningConfig) return
+
     project.extensions.configure<SigningExtension>("signing") {
         sign(publication)
     }
 }
 
 private fun Project.getSensitiveProperty(name: String): String? {
+    return localProperties().getProperty(name)
+}
 
-    val localProperties = project.rootProject.file("local.properties")
+private fun Project.getPublishProperty(gradlePropertyName: String, envName: String): String? {
+    return findProperty(gradlePropertyName)?.toString()?.takeIf { it.isNotBlank() }
+        ?: localProperties().getProperty(gradlePropertyName)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(envName)?.takeIf { it.isNotBlank() }
+}
+
+private fun Project.localProperties(): Properties {
+    return rootProject.file("local.properties")
         .takeIf { it.exists() }
         ?.let { file ->
-            java.util.Properties().apply {
-                load(file.inputStream())
+            Properties().apply {
+                file.inputStream().use(::load)
             }
-        } ?: java.util.Properties()
-
-    return localProperties.getProperty(name)
+        } ?: Properties()
 }

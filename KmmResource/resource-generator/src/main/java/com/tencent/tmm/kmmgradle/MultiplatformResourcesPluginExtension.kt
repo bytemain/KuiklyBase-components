@@ -14,6 +14,16 @@ open class MultiplatformResourcesPluginExtension {
     var multiplatformResourcesPrefix: String? = null
     var iosBaseLocalizationRegion: String = "en"
     var staticFrameworkWarningEnabled: Boolean = false
+    /**
+     * Optional generated root for the common MR source set.
+     *
+     * When unset, common MR keeps the historical root:
+     * build/generated/tmm-res/commonMain/{src,res,assets}.
+     * Set this to a stable root such as "build/generated/tmm-res-common" to
+     * register only build/generated/tmm-res-common/commonMain/src into
+     * commonMain while platform generated outputs keep the default root.
+     */
+    var commonGeneratedDir: String? = null
     val sourceSetName: String
         get() = multiplatformResourcesSourceSet ?: KotlinSourceSet.COMMON_MAIN_SOURCE_SET_NAME
     var disableStaticFrameworkWarning = false
